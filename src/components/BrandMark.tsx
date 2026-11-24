@@ -1,5 +1,5 @@
 import React from 'react';
-import logoIconPink from '../assets/logo-a-icon-pink.png';
+import { LOGO_ICON_PINK_DATA_URI } from '../assets/logoIconPink';
 
 interface BrandMarkProps {
   className?: string;
@@ -14,7 +14,7 @@ export const BrandMark: React.FC<BrandMarkProps> = ({
 }) => {
   return (
     <img
-      src={logoIconPink}
+      src={LOGO_ICON_PINK_DATA_URI}
       alt=""
       aria-hidden="true"
       className={className}
