@@ -19,7 +19,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { deposit } = calculateDepositAndBalance(product.priceNaira, minUpfrontPct);
 
   return (
-    <article className="group flex flex-col">
+    <article className="group flex flex-col min-w-0 max-w-full">
       {/* Large Borderless Editorial Photo */}
       <button
         type="button"
@@ -46,7 +46,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       </button>
 
       {/* Calm Minimal Editorial Text Beneath Photo */}
-      <div className="pt-4 flex flex-col flex-1">
+      <div className="pt-4 flex flex-col flex-1 min-w-0">
         <p className="text-[13px] tracking-[0.12em] uppercase text-[#666666] truncate">
           {category ? category.name : 'Curated Find'}
         </p>
@@ -54,18 +54,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <button
           type="button"
           onClick={() => navigate({ page: 'product', productSlug: product.slug })}
-          className="mt-1.5 text-left cursor-pointer"
+          className="mt-1.5 text-left cursor-pointer min-w-0"
         >
-          <h3 className="font-display text-2xl font-medium text-[#222222] leading-[1.2] group-hover:text-[#E8005F] transition-colors line-clamp-2">
+          <h3 className="font-display text-2xl font-medium text-[#222222] leading-[1.2] group-hover:text-[#E8005F] transition-colors line-clamp-2 break-words">
             {product.name}
           </h3>
         </button>
 
-        <div className="mt-2.5 flex items-baseline justify-between gap-3">
+        <div className="mt-2.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <span className="text-base font-semibold text-[#222222] tabular-nums">
             {formatNaira(product.priceNaira)}
           </span>
-          <span className="text-sm font-medium text-[#E8005F] tabular-nums whitespace-nowrap">
+          <span className="text-sm font-medium text-[#E8005F] tabular-nums">
             Deposit from {formatNaira(deposit)}
           </span>
         </div>

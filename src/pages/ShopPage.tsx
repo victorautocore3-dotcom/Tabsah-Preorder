@@ -69,10 +69,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   };
 
   return (
-    <div className="max-w-[1380px] mx-auto px-5 sm:px-8 lg:px-12 py-12 sm:py-16">
+    <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
       {/* Calm Editorial Page Header */}
       <div className="pb-10 mb-10 border-b border-[#F0D9E3]">
-        <nav className="text-[13px] tracking-[0.16em] uppercase text-[#666666] mb-4 flex items-center gap-2">
+        <nav className="text-[13px] tracking-[0.16em] uppercase text-[#666666] mb-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => navigate({ page: 'home' })}
@@ -106,11 +106,11 @@ export const ShopPage: React.FC<ShopPageProps> = ({
 
       {/* Clean Architectural Category Filter Bar */}
       <div className="mb-8 pb-6 border-b border-[#EFE5EA]">
-        <div className="flex flex-wrap gap-x-6 gap-y-3">
+        <div className="flex flex-wrap gap-x-5 sm:gap-x-6 gap-y-3">
           <button
             type="button"
             onClick={() => handleCategoryChange('all')}
-            className={`pb-1.5 text-[13px] tracking-[0.11em] uppercase transition-colors whitespace-nowrap cursor-pointer border-b-2 ${
+            className={`pb-1.5 text-[13px] tracking-[0.11em] uppercase transition-colors text-left sm:whitespace-nowrap cursor-pointer border-b-2 ${
               selectedCategory === 'all'
                 ? 'border-[#E8005F] text-[#E8005F] font-semibold'
                 : 'border-transparent text-[#555555] hover:text-[#E8005F]'
@@ -126,7 +126,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                 key={cat.id}
                 type="button"
                 onClick={() => handleCategoryChange(cat.slug)}
-                className={`pb-1.5 text-[13px] tracking-[0.11em] uppercase transition-colors whitespace-nowrap cursor-pointer border-b-2 ${
+                className={`pb-1.5 text-[13px] tracking-[0.11em] uppercase transition-colors text-left sm:whitespace-nowrap cursor-pointer border-b-2 ${
                   active
                     ? 'border-[#E8005F] text-[#E8005F] font-semibold'
                     : 'border-transparent text-[#555555] hover:text-[#E8005F]'

@@ -37,9 +37,9 @@ export const AnnouncementBar: React.FC = () => {
     <div
       role="region"
       aria-label="Store announcements"
-      className="bg-[#E8005F] text-white border-b border-[#C4004F]"
+      className="w-full max-w-full bg-[#E8005F] text-white border-b border-[#C4004F]"
     >
-      <div className="max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-2.5 flex items-center justify-between gap-3">
+      <div className="max-w-[1380px] mx-auto px-2 sm:px-8 lg:px-12 py-2.5 flex items-center justify-between gap-1.5 sm:gap-3">
         <button
           type="button"
           onClick={handlePrev}
@@ -49,14 +49,14 @@ export const AnnouncementBar: React.FC = () => {
           <ChevronLeft className="w-4 h-4 stroke-[1.75]" />
         </button>
 
-        <div className="flex-1 grid grid-cols-1 grid-rows-1 items-center">
+        <div className="flex-1 min-w-0 grid grid-cols-1 grid-rows-1 items-center">
           {messages.map((msg, i) => {
             const active = i === index;
             return (
               <p
                 key={msg}
                 aria-hidden={!active}
-                className={`col-start-1 row-start-1 text-center text-[13px] sm:text-sm font-medium tracking-[0.03em] leading-snug px-2 text-white transition-opacity duration-500 ${
+                className={`col-start-1 row-start-1 text-center text-[13px] sm:text-sm font-medium tracking-[0.02em] sm:tracking-[0.03em] leading-snug px-1 sm:px-2 text-white break-words transition-opacity duration-500 ${
                   active ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
               >

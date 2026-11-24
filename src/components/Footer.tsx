@@ -7,22 +7,22 @@ export const Footer: React.FC = () => {
   const { navigate, categories, settings, getWhatsAppUrl } = useStore();
 
   return (
-    <footer className="bg-[#52005C] text-white mt-24 border-t border-[#3D0045]">
-      <div className="max-w-[1380px] mx-auto px-5 sm:px-8 lg:px-12 py-16 sm:py-20">
+    <footer className="w-full max-w-full bg-[#52005C] text-white mt-24 border-t border-[#3D0045]">
+      <div className="max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-14 sm:py-20">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-10">
           {/* Brand Column */}
-          <div className="lg:col-span-4 space-y-5">
+          <div className="lg:col-span-4 space-y-5 min-w-0">
             <button
               type="button"
               onClick={() => navigate({ page: 'home' })}
-              className="text-left cursor-pointer block"
+              className="text-left cursor-pointer block max-w-full"
             >
               <span className="block text-[13px] tracking-[0.18em] uppercase text-[#FFB3D1] mb-2">
                 Curated Nigerian Pre-Order House
               </span>
-              <span className="inline-flex items-center gap-2.5">
-                <BrandMark className="h-[36px] w-auto object-contain shrink-0 block" />
-                <span className="font-display text-2xl sm:text-3xl font-medium tracking-[0.01em] text-white">
+              <span className="inline-flex items-center gap-2.5 max-w-full">
+                <BrandMark className="h-[32px] sm:h-[36px] w-auto object-contain shrink-0 block" />
+                <span className="font-display text-2xl sm:text-3xl font-medium tracking-[0.01em] text-white break-words">
                   Pre Order With Tabsah
                 </span>
               </span>
@@ -129,7 +129,7 @@ export const Footer: React.FC = () => {
           </div>
 
           {/* Account & Lagos Hub */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 min-w-0">
             <h3 className="font-sans text-[13px] tracking-[0.18em] uppercase font-semibold text-[#FFB3D1] mb-5">
               Account & Hub
             </h3>
@@ -138,7 +138,7 @@ export const Footer: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate({ page: 'account', tab: 'orders' })}
-                  className="hover:text-white transition-colors cursor-pointer"
+                  className="hover:text-white transition-colors cursor-pointer text-left"
                 >
                   My Orders & Balance Payment
                 </button>
@@ -147,7 +147,7 @@ export const Footer: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate({ page: 'login' })}
-                  className="hover:text-white transition-colors cursor-pointer"
+                  className="hover:text-white transition-colors cursor-pointer text-left"
                 >
                   Customer Login
                 </button>
@@ -156,20 +156,20 @@ export const Footer: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate({ page: 'admin', tab: 'overview' })}
-                  className="hover:text-white transition-colors cursor-pointer"
+                  className="hover:text-white transition-colors cursor-pointer text-left"
                 >
                   Seller Admin Dashboard
                 </button>
               </li>
             </ul>
-            <div className="mt-6 pt-5 border-t border-white/15 text-sm text-white/75 space-y-1.5 leading-relaxed">
+            <div className="mt-6 pt-5 border-t border-white/15 text-sm text-white/75 space-y-1.5 leading-relaxed break-words">
               <p className="text-white font-medium">{settings.businessName}</p>
               <p>{settings.storeAddress}</p>
               <p>{settings.storeWhatsAppNumber}</p>
               <p>
                 <a
                   href={`mailto:${settings.storeEmail}`}
-                  className="hover:text-white underline underline-offset-4 transition-colors"
+                  className="hover:text-white underline underline-offset-4 transition-colors break-all sm:break-normal"
                 >
                   {settings.storeEmail}
                 </a>

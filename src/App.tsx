@@ -57,20 +57,20 @@ const AppShell: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white text-[#222222]">
+    <div className="min-h-screen w-full max-w-full overflow-x-clip flex flex-col bg-white text-[#222222]">
       <AnnouncementBar />
       <Header />
-      <main className="flex-1">{renderPage()}</main>
+      <main className="flex-1 w-full max-w-full min-w-0">{renderPage()}</main>
       <Footer />
 
       {toast && (
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-6 right-6 z-50 max-w-sm bg-[#52005C] text-white border border-[#E8005F] px-5 py-3.5 text-sm tracking-[0.02em] flex items-center gap-3"
+          className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-auto sm:right-6 z-50 sm:max-w-sm bg-[#52005C] text-white border border-[#E8005F] px-5 py-3.5 text-sm tracking-[0.02em] flex items-center gap-3"
         >
           <span className="w-1.5 h-1.5 bg-[#E8005F] shrink-0" aria-hidden="true" />
-          <span>{toast.text}</span>
+          <span className="min-w-0 break-words">{toast.text}</span>
         </div>
       )}
     </div>

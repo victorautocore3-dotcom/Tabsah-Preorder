@@ -126,12 +126,12 @@ export const HomePage: React.FC = () => {
   ];
 
   return (
-    <div className="bg-white">
+    <div className="bg-white w-full max-w-full overflow-x-clip">
       {/* Full-Bleed 4-Slide Rotating Crossfade Hero */}
       <section
         aria-roledescription="carousel"
         aria-label="Featured pre-order collections"
-        className="relative w-full min-h-[76vh] lg:min-h-[84vh] overflow-hidden bg-[#222222]"
+        className="relative w-full max-w-full min-h-[580px] sm:min-h-[76vh] lg:min-h-[84vh] overflow-hidden bg-[#222222]"
       >
         {heroSlides.map((slide, idx) => {
           const isActive = idx === activeSlide;
@@ -151,31 +151,31 @@ export const HomePage: React.FC = () => {
               {/* Flat non-gradient scrim for crisp centered white typography */}
               <div className="absolute inset-0 bg-[#1C0020]/50" aria-hidden="true" />
 
-              <div className="relative z-10 w-full max-w-4xl mx-auto px-6 sm:px-10 py-24 sm:py-32 text-center flex flex-col items-center justify-center">
-                <p className="text-[13px] tracking-[0.22em] uppercase font-medium text-[#FFB3D1] mb-5">
+              <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-10 pt-14 pb-20 sm:py-28 lg:py-32 text-center flex flex-col items-center justify-center min-w-0">
+                <p className="text-[13px] tracking-[0.18em] sm:tracking-[0.22em] uppercase font-medium text-[#FFB3D1] mb-4 sm:mb-5 max-w-full">
                   {slide.kicker}
                 </p>
                 {idx === 0 ? (
-                  <h1 className="font-display text-4xl sm:text-6xl lg:text-[68px] font-normal text-white leading-[1.06] text-balance max-w-3xl">
+                  <h1 className="font-display text-[clamp(1.9rem,8vw,4.25rem)] font-normal text-white leading-[1.08] sm:leading-[1.06] text-balance w-full max-w-3xl break-words">
                     {slide.headline}
                   </h1>
                 ) : (
-                  <h2 className="font-display text-4xl sm:text-6xl lg:text-[68px] font-normal text-white leading-[1.06] text-balance max-w-3xl">
+                  <h2 className="font-display text-[clamp(1.9rem,8vw,4.25rem)] font-normal text-white leading-[1.08] sm:leading-[1.06] text-balance w-full max-w-3xl break-words">
                     {slide.headline}
                   </h2>
                 )}
-                <p className="mt-6 text-base sm:text-lg text-white/90 leading-relaxed max-w-xl font-normal">
+                <p className="mt-5 sm:mt-6 text-base sm:text-lg text-white/90 leading-relaxed w-full max-w-xl font-normal break-words">
                   {slide.subline}
                 </p>
-                <div className="mt-10">
+                <div className="mt-8 sm:mt-10 w-full flex justify-center">
                   <button
                     type="button"
                     tabIndex={isActive ? 0 : -1}
                     onClick={slide.onAction}
-                    className="inline-flex items-center gap-3 px-8 py-4 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.18em] uppercase font-semibold transition-colors whitespace-nowrap cursor-pointer"
+                    className="inline-flex items-center justify-center gap-2.5 sm:gap-3 px-5 sm:px-8 py-3.5 sm:py-4 max-w-full bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.14em] sm:tracking-[0.18em] uppercase font-semibold transition-colors text-center sm:whitespace-nowrap cursor-pointer"
                   >
                     <span>{slide.ctaLabel}</span>
-                    <ArrowRight className="w-4 h-4 stroke-[1.75]" />
+                    <ArrowRight className="w-4 h-4 stroke-[1.75] shrink-0" />
                   </button>
                 </div>
               </div>
@@ -294,7 +294,7 @@ export const HomePage: React.FC = () => {
 
       {/* Story-Led Section 1: The Curation and Inspection Story (Full-Bleed Background Photo) */}
       <RevealSection>
-        <section className="relative w-full min-h-[540px] lg:min-h-[640px] flex items-center overflow-hidden bg-[#222222]">
+        <section className="relative w-full max-w-full min-h-[500px] sm:min-h-[540px] lg:min-h-[640px] flex items-center overflow-hidden bg-[#222222]">
           <ProductImage
             src={EDITORIAL_STORY_CURATION}
             alt="Inspected linen, wristwatch, glass fragrance, and twine-tied parcel on a sunlit travertine table"
@@ -303,12 +303,12 @@ export const HomePage: React.FC = () => {
           {/* Flat non-gradient scrim for crisp white editorial type */}
           <div className="absolute inset-0 bg-[#1C0020]/55" aria-hidden="true" />
 
-          <div className="relative z-10 w-full max-w-[1380px] mx-auto px-5 sm:px-8 lg:px-12 py-24 sm:py-32">
-            <div className="max-w-2xl space-y-6">
+          <div className="relative z-10 w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-20 sm:py-32 min-w-0">
+            <div className="max-w-2xl space-y-6 min-w-0">
               <p className="text-[13px] tracking-[0.22em] uppercase font-medium text-[#FFB3D1]">
                 Our Standard
               </p>
-              <h2 className="font-display text-4xl sm:text-5xl lg:text-[56px] font-normal text-white leading-[1.08] text-balance">
+              <h2 className="font-display text-[clamp(1.85rem,7.5vw,3.5rem)] font-normal text-white leading-[1.08] text-balance break-words">
                 Inspected in Lagos before your balance is due.
               </h2>
               <p className="text-base text-white/90 leading-relaxed max-w-xl">
@@ -353,7 +353,7 @@ export const HomePage: React.FC = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-8 sm:gap-y-10">
               {categories.map((cat) => {
                 const count = products.filter((p) => p.categorySlug === cat.slug).length;
                 return (
@@ -361,7 +361,7 @@ export const HomePage: React.FC = () => {
                     key={cat.id}
                     type="button"
                     onClick={() => navigate({ page: 'shop', categorySlug: cat.slug })}
-                    className="group flex flex-col text-left cursor-pointer"
+                    className="group flex flex-col text-left cursor-pointer min-w-0"
                   >
                     <div className="aspect-[4/3] w-full bg-white overflow-hidden">
                       <ProductImage
@@ -370,8 +370,8 @@ export const HomePage: React.FC = () => {
                         className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
                       />
                     </div>
-                    <div className="pt-3.5 flex items-baseline justify-between gap-2 border-b border-[#EBCAD8] pb-3">
-                      <h3 className="font-display text-xl sm:text-[22px] font-medium text-[#222222] group-hover:text-[#E8005F] transition-colors leading-snug">
+                    <div className="pt-3.5 flex items-baseline justify-between gap-2 border-b border-[#EBCAD8] pb-3 min-w-0">
+                      <h3 className="font-display text-lg sm:text-[22px] font-medium text-[#222222] group-hover:text-[#E8005F] transition-colors leading-snug min-w-0 break-words">
                         {cat.name}
                       </h3>
                       <span className="text-sm font-medium text-[#52005C] tabular-nums shrink-0">
@@ -386,19 +386,19 @@ export const HomePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate({ page: 'shop' })}
-                className="group flex flex-col justify-between bg-[#52005C] hover:bg-[#E8005F] text-white p-6 sm:p-8 text-left transition-colors cursor-pointer"
+                className="group flex flex-col justify-between bg-[#52005C] hover:bg-[#E8005F] text-white p-4 sm:p-8 text-left transition-colors cursor-pointer min-w-0"
               >
-                <div>
-                  <p className="text-[13px] tracking-[0.2em] uppercase text-[#FFB3D1] mb-3">
+                <div className="min-w-0">
+                  <p className="text-[13px] tracking-[0.16em] sm:tracking-[0.2em] uppercase text-[#FFB3D1] mb-2 sm:mb-3">
                     Full Index
                   </p>
-                  <h3 className="font-display text-2xl sm:text-3xl font-normal text-white leading-snug">
+                  <h3 className="font-display text-xl sm:text-3xl font-normal text-white leading-snug break-words">
                     View all {products.length} open pre-orders
                   </h3>
                 </div>
-                <div className="mt-8 inline-flex items-center gap-2 text-[13px] tracking-[0.14em] uppercase font-semibold text-white">
+                <div className="mt-6 sm:mt-8 inline-flex items-center gap-2 text-[13px] tracking-[0.14em] uppercase font-semibold text-white">
                   <span>Browse All</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-[#FFB3D1]" />
+                  <ArrowRight className="w-3.5 h-3.5 text-[#FFB3D1] shrink-0" />
                 </div>
               </button>
             </div>
@@ -440,7 +440,7 @@ export const HomePage: React.FC = () => {
 
       {/* Story-Led Section 2: Travel and Everyday Wardrobe (Full-Bleed Background Photo) */}
       <RevealSection>
-        <section className="relative w-full min-h-[540px] lg:min-h-[640px] flex items-center overflow-hidden bg-[#222222]">
+        <section className="relative w-full max-w-full min-h-[500px] sm:min-h-[540px] lg:min-h-[640px] flex items-center overflow-hidden bg-[#222222]">
           <ProductImage
             src={EDITORIAL_STORY_LIVING}
             alt="Hardshell carry-on suitcase, cognac leather tote bag, and sand suede loafers in sunlit studio"
@@ -449,12 +449,12 @@ export const HomePage: React.FC = () => {
           {/* Flat non-gradient scrim for crisp white editorial type */}
           <div className="absolute inset-0 bg-[#1C0020]/55" aria-hidden="true" />
 
-          <div className="relative z-10 w-full max-w-[1380px] mx-auto px-5 sm:px-8 lg:px-12 py-24 sm:py-32">
-            <div className="max-w-2xl space-y-6">
+          <div className="relative z-10 w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-20 sm:py-32 min-w-0">
+            <div className="max-w-2xl space-y-6 min-w-0">
               <p className="text-[13px] tracking-[0.22em] uppercase font-medium text-[#FFB3D1]">
                 The Travel and Wardrobe Edit
               </p>
-              <h2 className="font-display text-4xl sm:text-5xl lg:text-[56px] font-normal text-white leading-[1.08] text-balance">
+              <h2 className="font-display text-[clamp(1.85rem,7.5vw,3.5rem)] font-normal text-white leading-[1.08] text-balance break-words">
                 Made for Lagos weekdays and Abuja weekends.
               </h2>
               <p className="text-base text-white/90 leading-relaxed max-w-xl">
@@ -551,16 +551,16 @@ export const HomePage: React.FC = () => {
             </div>
 
             <div className="mt-12 pt-8 border-t border-[#EBCAD8] flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-              <p className="font-display text-2xl text-[#222222]">
+              <p className="font-display text-2xl text-[#222222] min-w-0 break-words">
                 Questions about sizing, voltage, or upcoming batches?
               </p>
               <a
                 href={getWhatsAppUrl('Hello Tabsah, I would like help choosing a pre-order item.')}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 max-w-full bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors text-center sm:whitespace-nowrap shrink-0"
               >
-                <MessageCircle className="w-4 h-4 text-white stroke-[1.75]" />
+                <MessageCircle className="w-4 h-4 text-white stroke-[1.75] shrink-0" />
                 <span>Message on WhatsApp</span>
               </a>
             </div>

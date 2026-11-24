@@ -46,7 +46,7 @@ export const RevealSection: React.FC<RevealSectionProps> = ({ children, classNam
   return (
     <div
       ref={ref}
-      className={`transition-all duration-700 ease-out will-change-transform ${
+      className={`w-full max-w-full transition-all duration-700 ease-out will-change-transform ${
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
       } ${className}`}
     >

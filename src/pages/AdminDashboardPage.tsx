@@ -227,10 +227,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   ];
 
   return (
-    <div className="max-w-[1380px] mx-auto px-5 sm:px-8 lg:px-12 py-12 sm:py-16">
+    <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
       <div className="flex flex-col lg:flex-row gap-10 items-start">
         {/* Sidebar Navigation */}
-        <aside className="w-full lg:w-64 shrink-0 bg-white border border-[#F0D9E3] p-5">
+        <aside className="w-full lg:w-64 shrink-0 min-w-0 bg-white border border-[#F0D9E3] p-5">
           <div className="pb-4 mb-4 border-b border-[#EFE5EA]">
             <p className="text-[13px] font-medium tracking-[0.18em] uppercase text-[#52005C]">
               Seller Portal
@@ -1112,7 +1112,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
               ))}
             </ul>
 
-            <div className="grid grid-cols-3 border-t border-l border-[#F0D9E3] text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-3 border-t border-l border-[#F0D9E3] text-sm">
               <div className="bg-white border-r border-b border-[#F0D9E3] p-3.5">
                 <p className="text-[13px] tracking-[0.08em] uppercase text-[#666666]">Full Total</p>
                 <p className="mt-1 font-medium text-base text-[#222222] tabular-nums">

@@ -194,7 +194,7 @@ export const CheckoutPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-[1380px] mx-auto px-5 sm:px-8 lg:px-12 py-12 sm:py-16">
+    <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
       <div className="pb-8 mb-10 border-b border-[#F0D9E3]">
         <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-2">
           Checkout
@@ -210,7 +210,7 @@ export const CheckoutPage: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         {/* Left Form */}
-        <div className="lg:col-span-7 space-y-10">
+        <div className="lg:col-span-7 min-w-0 space-y-10">
           <section className="space-y-6 pb-8 border-b border-[#EFE5EA]">
             <div>
               <p className="text-[13px] tracking-[0.18em] uppercase text-[#52005C] mb-1">Step 01</p>
@@ -340,7 +340,7 @@ export const CheckoutPage: React.FC = () => {
                 return (
                   <label
                     key={pct}
-                    className={`relative flex flex-col justify-between p-5 border-2 transition-colors cursor-pointer ${
+                    className={`relative flex flex-col justify-between p-5 border-2 transition-colors cursor-pointer min-w-0 ${
                       isSelected
                         ? 'border-[#E8005F] bg-[#FFF1F6]'
                         : 'border-[#F0D9E3] bg-white hover:border-[#52005C]'
@@ -482,7 +482,7 @@ export const CheckoutPage: React.FC = () => {
         </div>
 
         {/* Right Summary & Pay Deposit CTA */}
-        <aside className="lg:col-span-5 border border-[#F0D9E3] bg-white p-7 sm:p-8 space-y-6">
+        <aside className="lg:col-span-5 min-w-0 border border-[#F0D9E3] bg-white p-5 sm:p-8 space-y-6">
           <div>
             <p className="text-[13px] tracking-[0.18em] uppercase text-[#52005C] mb-1">Summary</p>
             <h2 className="font-display text-2xl sm:text-3xl font-medium text-[#222222]">
@@ -560,9 +560,9 @@ export const CheckoutPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full py-4 px-6 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold inline-flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
+            className="w-full py-4 px-5 sm:px-6 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.14em] sm:tracking-[0.16em] uppercase font-semibold inline-flex items-center justify-center gap-2.5 text-center transition-colors cursor-pointer"
           >
-            <Lock className="w-3.5 h-3.5" />
+            <Lock className="w-3.5 h-3.5 shrink-0" />
             <span>{payButtonLabel}</span>
           </button>
 

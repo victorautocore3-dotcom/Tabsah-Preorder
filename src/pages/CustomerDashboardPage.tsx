@@ -99,17 +99,17 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
   };
 
   return (
-    <div className="max-w-[1380px] mx-auto px-5 sm:px-8 lg:px-12 py-12 sm:py-16">
+    <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
       {/* Top Header */}
-      <div className="bg-[#FFF1F6] border border-[#F0D9E3] px-6 sm:px-10 py-8 sm:py-10 mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-        <div>
+      <div className="bg-[#FFF1F6] border border-[#F0D9E3] px-5 sm:px-10 py-7 sm:py-10 mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+        <div className="min-w-0">
           <p className="text-[13px] font-medium tracking-[0.2em] uppercase text-[#52005C] mb-2">
             Customer Account
           </p>
-          <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222]">
+          <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222] break-words">
             Welcome, {currentCustomer.name}
           </h1>
-          <p className="mt-2 text-base text-[#4A4A4A]">
+          <p className="mt-2 text-base text-[#4A4A4A] break-words">
             {currentCustomer.email} · WhatsApp {currentCustomer.whatsApp}
           </p>
         </div>
@@ -125,7 +125,7 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-8 border-b border-[#F0D9E3] mb-10">
+      <div className="flex flex-wrap items-center gap-6 sm:gap-8 border-b border-[#F0D9E3] mb-10">
         <button
           type="button"
           onClick={() => {
@@ -198,9 +198,9 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                       <button
                         type="button"
                         onClick={() => payOrderBalance(selectedOrder.id)}
-                        className="inline-flex items-center gap-2 px-6 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.14em] uppercase transition-colors whitespace-nowrap cursor-pointer"
+                        className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 max-w-full bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.14em] uppercase transition-colors text-center sm:whitespace-nowrap cursor-pointer"
                       >
-                        <CreditCard className="w-4 h-4 text-white" />
+                        <CreditCard className="w-4 h-4 text-white shrink-0" />
                         <span>
                           Pay Balance ({formatNaira(selectedOrder.balanceRemainingNaira)})
                         </span>
@@ -334,18 +334,18 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                     {selectedOrder.items.map((item) => (
                       <div
                         key={item.productId}
-                        className="py-5 flex items-center justify-between gap-4"
+                        className="py-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4"
                       >
-                        <div className="flex items-center gap-5">
-                          <div className="w-18 h-18 overflow-hidden bg-[#F8F5F7] shrink-0">
+                        <div className="flex items-center gap-4 sm:gap-5 min-w-0">
+                          <div className="w-16 h-16 sm:w-18 sm:h-18 overflow-hidden bg-[#F8F5F7] shrink-0">
                             <ProductImage
                               src={item.productImage}
                               alt={item.productName}
                               className="w-full h-full object-cover"
                             />
                           </div>
-                          <div>
-                            <p className="font-display text-xl font-medium text-[#222222]">
+                          <div className="min-w-0">
+                            <p className="font-display text-xl font-medium text-[#222222] break-words">
                               {item.productName}
                             </p>
                             <p className="text-sm text-[#666666] mt-0.5 tabular-nums">
@@ -431,8 +431,8 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-6 lg:gap-8">
-                    <div className="grid grid-cols-3 gap-5 text-sm">
+                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-6 lg:gap-8 w-full lg:w-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 text-sm w-full sm:w-auto">
                       <div>
                         <p className="text-[13px] tracking-[0.1em] uppercase text-[#666666]">
                           Full Total
@@ -462,7 +462,7 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2.5 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                       {order.balanceRemainingNaira > 0 && (
                         <button
                           type="button"

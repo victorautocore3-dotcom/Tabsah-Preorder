@@ -52,11 +52,11 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-5 sm:px-8 py-14 sm:py-20">
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-8 py-14 sm:py-20">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         {/* Auth Column */}
-        <div className="lg:col-span-7 border border-[#F0D9E3] bg-white p-7 sm:p-10">
-          <div className="flex items-center gap-6 border-b border-[#EFE5EA] mb-8">
+        <div className="lg:col-span-7 min-w-0 border border-[#F0D9E3] bg-white p-5 sm:p-10">
+          <div className="flex flex-wrap items-center gap-5 sm:gap-6 border-b border-[#EFE5EA] mb-8">
             <button
               type="button"
               onClick={() => {
@@ -275,8 +275,8 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Side Helper Panel */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-[#FFF1F6] border border-[#F0D9E3] p-7 space-y-4">
+        <div className="lg:col-span-5 min-w-0 space-y-6">
+          <div className="bg-[#FFF1F6] border border-[#F0D9E3] p-6 sm:p-7 space-y-4">
             <p className="text-[13px] tracking-[0.18em] uppercase font-medium text-[#52005C]">
               Demo Access
             </p>
@@ -287,7 +287,7 @@ export const LoginPage: React.FC = () => {
               Inspect a populated dashboard with active pre-orders, a balance ready to pay, and a
               delivered Lagos order.
             </p>
-            <div className="bg-white border border-[#F0D9E3] p-4 text-sm text-[#4A4A4A] space-y-1">
+            <div className="bg-white border border-[#F0D9E3] p-4 text-sm text-[#4A4A4A] space-y-1 break-all sm:break-normal">
               <p>
                 <strong className="text-[#222222]">Email:</strong> amaka.okafor@example.com
               </p>

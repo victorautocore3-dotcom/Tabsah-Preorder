@@ -31,10 +31,10 @@ export const InfoPages: React.FC<InfoPagesProps> = ({ slug }) => {
   };
 
   return (
-    <div className="max-w-[1380px] mx-auto px-5 sm:px-8 lg:px-12 py-12 sm:py-16">
+    <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         {/* Quiet Editorial Sidebar */}
-        <aside className="lg:col-span-3 lg:border-r lg:border-[#EFE5EA] lg:pr-8">
+        <aside className="lg:col-span-3 min-w-0 lg:border-r lg:border-[#EFE5EA] lg:pr-8">
           <p className="text-[13px] tracking-[0.18em] uppercase font-medium text-[#52005C] mb-4">
             Store Information
           </p>
@@ -57,7 +57,7 @@ export const InfoPages: React.FC<InfoPagesProps> = ({ slug }) => {
         </aside>
 
         {/* Content Body */}
-        <article className="lg:col-span-9 max-w-3xl space-y-8">
+        <article className="lg:col-span-9 min-w-0 max-w-3xl space-y-8">
           {slug === 'preorder-terms' && (
             <>
               <div className="pb-6 border-b border-[#F0D9E3]">
@@ -300,20 +300,20 @@ export const InfoPages: React.FC<InfoPagesProps> = ({ slug }) => {
                   href={getWhatsAppUrl('Hello Pre Order With Tabsah, I have a question.')}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors whitespace-nowrap shrink-0"
+                  className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 max-w-full bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors text-center sm:whitespace-nowrap shrink-0"
                 >
-                  <MessageCircle className="w-4 h-4 text-white stroke-[1.75]" />
+                  <MessageCircle className="w-4 h-4 text-white stroke-[1.75] shrink-0" />
                   <span>Chat on WhatsApp</span>
                 </a>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-2">
-                <div className="space-y-5 text-base text-[#4A4A4A]">
+                <div className="space-y-5 text-base text-[#4A4A4A] min-w-0">
                   <div className="flex items-start gap-3">
                     <MapPin className="w-4 h-4 text-[#E8005F] shrink-0 mt-1.5" />
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold text-[#222222]">{settings.businessName}</p>
-                      <p>{settings.storeAddress}</p>
+                      <p className="break-words">{settings.storeAddress}</p>
                       <p className="text-sm text-[#666666] mt-1">
                         Monday to Saturday, 9:00 AM to 6:00 PM WAT
                       </p>
@@ -321,19 +321,19 @@ export const InfoPages: React.FC<InfoPagesProps> = ({ slug }) => {
                   </div>
                   <div className="flex items-start gap-3">
                     <MessageCircle className="w-4 h-4 text-[#E8005F] shrink-0 mt-1.5" />
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold text-[#222222]">WhatsApp Desk</p>
                       <p>{settings.storeWhatsAppNumber}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Mail className="w-4 h-4 text-[#E8005F] shrink-0 mt-1.5" />
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold text-[#222222]">Email</p>
                       <p>
                         <a
                           href={`mailto:${settings.storeEmail}`}
-                          className="text-[#4A4A4A] hover:text-[#E8005F] underline underline-offset-4 transition-colors"
+                          className="text-[#4A4A4A] hover:text-[#E8005F] underline underline-offset-4 transition-colors break-all sm:break-normal"
                         >
                           {settings.storeEmail}
                         </a>

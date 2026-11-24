@@ -47,7 +47,7 @@ export const CartPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-[1380px] mx-auto px-5 sm:px-8 lg:px-12 py-12 sm:py-16">
+    <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
       <div className="pb-8 mb-10 border-b border-[#F0D9E3]">
         <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-2">
           Shopping Bag
@@ -62,7 +62,7 @@ export const CartPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         {/* Cart Items */}
-        <div className="lg:col-span-7 divide-y divide-[#EFE5EA] border-t border-b border-[#EFE5EA]">
+        <div className="lg:col-span-7 min-w-0 divide-y divide-[#EFE5EA] border-t border-b border-[#EFE5EA]">
           {cartDetailedItems.map(({ product, quantity, lineTotal }) => (
             <div key={product.id} className="py-6 flex flex-col sm:flex-row gap-6">
               <button
@@ -77,7 +77,7 @@ export const CartPage: React.FC = () => {
                 />
               </button>
 
-              <div className="flex-1 flex flex-col justify-between gap-4">
+              <div className="flex-1 min-w-0 flex flex-col justify-between gap-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <span className="inline-block bg-[#52005C] text-white text-[13px] tracking-[0.12em] uppercase font-semibold px-2.5 py-0.5 mb-2">
@@ -107,7 +107,7 @@ export const CartPage: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between gap-4 pt-2">
+                <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
                   <div className="inline-flex items-center border border-[#F0D9E3] bg-white h-9">
                     <button
                       type="button"
@@ -155,7 +155,7 @@ export const CartPage: React.FC = () => {
         </div>
 
         {/* Summary Panel */}
-        <aside className="lg:col-span-5 bg-[#FFF1F6] border border-[#F0D9E3] p-7 sm:p-9">
+        <aside className="lg:col-span-5 min-w-0 bg-[#FFF1F6] border border-[#F0D9E3] p-6 sm:p-9">
           <p className="text-[13px] tracking-[0.18em] uppercase font-medium text-[#52005C] mb-2">
             Payment Split
           </p>

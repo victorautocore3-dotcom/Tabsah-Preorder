@@ -38,17 +38,17 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white text-[#222222] border-b border-[#F0D9E3]">
-      <div className="max-w-[1380px] mx-auto px-5 sm:px-8 lg:px-12">
-        <div className="h-[72px] flex items-center justify-between gap-5 lg:gap-10">
+    <header className="sticky top-0 z-40 w-full max-w-full bg-white text-[#222222] border-b border-[#F0D9E3]">
+      <div className="max-w-[1380px] mx-auto px-3 sm:px-8 lg:px-12">
+        <div className="h-[64px] sm:h-[72px] flex items-center justify-between gap-2 sm:gap-5 lg:gap-10 min-w-0">
           {/* Editorial Serif Brand Wordmark + Pink Tag Mark */}
           <button
             type="button"
             onClick={() => go({ page: 'home' })}
-            className="inline-flex items-center gap-2.5 text-left whitespace-nowrap shrink-0 cursor-pointer group focus-visible:outline-2 focus-visible:outline-[#E8005F]"
+            className="inline-flex items-center gap-1.5 sm:gap-2.5 text-left min-w-0 shrink cursor-pointer group focus-visible:outline-2 focus-visible:outline-[#E8005F]"
           >
-            <BrandMark className="h-[36px] w-auto object-contain shrink-0 block" />
-            <span className="font-display text-2xl sm:text-[26px] font-medium tracking-[0.01em] text-[#222222] group-hover:text-[#E8005F] transition-colors">
+            <BrandMark className="h-[24px] min-[380px]:h-[26px] sm:h-[36px] w-auto object-contain shrink-0 block" />
+            <span className="font-display text-[15.5px] min-[380px]:text-[17px] min-[410px]:text-[20px] sm:text-[26px] font-medium tracking-[0.01em] text-[#222222] group-hover:text-[#E8005F] transition-colors leading-tight truncate">
               Pre Order With Tabsah
             </span>
           </button>
@@ -95,7 +95,7 @@ export const Header: React.FC = () => {
           </div>
 
           {/* Nav Links + Account & Cart */}
-          <div className="flex items-center gap-5 lg:gap-8 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-5 lg:gap-8 shrink-0">
             <nav className="hidden lg:flex items-center gap-7 text-[13px] tracking-[0.13em] uppercase font-medium">
               <button
                 type="button"
@@ -143,14 +143,14 @@ export const Header: React.FC = () => {
               </button>
             </nav>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
               <button
                 type="button"
                 onClick={() =>
                   go(currentCustomer ? { page: 'account', tab: 'orders' } : { page: 'login' })
                 }
                 aria-label="Account"
-                className="inline-flex items-center gap-2 py-2 text-[#222222] hover:text-[#E8005F] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1.5 sm:gap-2 p-1.5 sm:px-0 sm:py-2 text-[#222222] hover:text-[#E8005F] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <User className="w-[18px] h-[18px] stroke-[1.75]" />
                 <span className="hidden sm:inline text-[13px] tracking-[0.11em] uppercase font-medium max-w-[110px] truncate">
@@ -162,7 +162,7 @@ export const Header: React.FC = () => {
                 type="button"
                 onClick={() => go({ page: 'cart' })}
                 aria-label={`Shopping cart with ${cartCount} items`}
-                className="inline-flex items-center gap-2 py-2 text-[#222222] hover:text-[#E8005F] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1 sm:gap-2 p-1.5 sm:px-0 sm:py-2 text-[#222222] hover:text-[#E8005F] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <ShoppingBag className="w-[18px] h-[18px] stroke-[1.75]" />
                 <span className="hidden sm:inline text-[13px] tracking-[0.11em] uppercase font-medium">
@@ -177,7 +177,7 @@ export const Header: React.FC = () => {
                 type="button"
                 onClick={() => setMobileMenuOpen((v) => !v)}
                 aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-                className="lg:hidden inline-flex items-center justify-center w-9 h-9 text-[#52005C] hover:text-[#E8005F] cursor-pointer"
+                className="lg:hidden inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 text-[#52005C] hover:text-[#E8005F] cursor-pointer shrink-0"
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>

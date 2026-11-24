@@ -36,10 +36,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
   };
 
   return (
-    <div className="max-w-[1380px] mx-auto px-5 sm:px-8 lg:px-12 py-10 sm:py-14">
+    <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-10 sm:py-14">
       {/* Quiet Breadcrumb Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-8 mb-10 border-b border-[#EFE5EA]">
-        <nav className="text-[13px] tracking-[0.14em] uppercase text-[#666666] flex items-center gap-2 flex-wrap">
+        <nav className="text-[13px] tracking-[0.14em] uppercase text-[#666666] flex items-center gap-2 flex-wrap min-w-0">
           <button
             type="button"
             onClick={() => navigate({ page: 'home' })}
@@ -60,7 +60,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
               <span aria-hidden="true">/</span>
             </>
           )}
-          <span className="text-[#222222] font-medium">{product.name}</span>
+          <span className="text-[#222222] font-medium break-words">{product.name}</span>
         </nav>
 
         <button
@@ -70,7 +70,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
           }
           className="inline-flex items-center gap-2 text-[13px] tracking-[0.13em] uppercase font-semibold text-[#E8005F] hover:text-[#52005C] cursor-pointer"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
+          <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
           <span>Back to Catalogue</span>
         </button>
       </div>
@@ -78,7 +78,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
       {/* Main Split: Large Flush Photo Left, Calm Editorial Purchase Column Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start">
         {/* Left: Generous Studio Gallery */}
-        <div className="lg:col-span-7 space-y-5">
+        <div className="lg:col-span-7 space-y-5 min-w-0">
           <div className="aspect-[4/3] w-full bg-[#F8F5F7] overflow-hidden">
             <ProductImage
               src={product.image}
@@ -87,12 +87,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-5 pt-2 border-t border-[#EFE5EA] text-sm">
-            <div className="pt-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 pt-2 border-t border-[#EFE5EA] text-sm">
+            <div className="pt-2 sm:pt-3 min-w-0">
               <p className="text-[13px] tracking-[0.14em] uppercase text-[#666666]">Batch Code</p>
               <p className="mt-1 font-medium text-[#222222] tabular-nums">{product.batchCode}</p>
             </div>
-            <div className="pt-3">
+            <div className="pt-2 sm:pt-3 min-w-0">
               <p className="text-[13px] tracking-[0.14em] uppercase text-[#666666]">
                 Expected Arrival
               </p>
@@ -100,7 +100,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
                 {formatArrivalDate(product.expectedArrivalDate)}
               </p>
             </div>
-            <div className="pt-3">
+            <div className="pt-2 sm:pt-3 min-w-0">
               <p className="text-[13px] tracking-[0.14em] uppercase text-[#666666]">
                 Inspection Hub
               </p>
@@ -110,8 +110,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
         </div>
 
         {/* Right: Sticky Editorial Purchase Module */}
-        <div className="lg:col-span-5 lg:sticky lg:top-24">
-          <div className="flex items-center gap-3 mb-4">
+        <div className="lg:col-span-5 lg:sticky lg:top-24 min-w-0">
+          <div className="flex flex-wrap items-center gap-3 mb-4">
             {product.isPreOrderOpen ? (
               <span className="inline-block bg-[#52005C] text-white text-[13px] tracking-[0.14em] uppercase font-semibold px-2.5 py-1">
                 Pre-Order
@@ -126,7 +126,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
             </span>
           </div>
 
-          <h1 className="font-display text-4xl sm:text-[48px] font-medium text-[#222222] leading-[1.1]">
+          <h1 className="font-display text-3xl sm:text-[48px] font-medium text-[#222222] leading-[1.1] break-words">
             {product.name}
           </h1>
 
@@ -212,7 +212,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
               type="button"
               disabled={!product.isPreOrderOpen}
               onClick={handleAddToCart}
-              className={`flex-1 h-12 px-6 text-[13px] tracking-[0.16em] uppercase font-semibold inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap cursor-pointer ${
+              className={`flex-1 min-h-12 py-3 px-4 sm:px-6 text-[13px] tracking-[0.14em] sm:tracking-[0.16em] uppercase font-semibold inline-flex items-center justify-center gap-2 transition-colors text-center sm:whitespace-nowrap cursor-pointer ${
                 product.isPreOrderOpen
                   ? 'bg-[#E8005F] hover:bg-[#C4004F] text-white'
                   : 'bg-[#F3E7EC] text-[#7A7A7A] cursor-not-allowed'
