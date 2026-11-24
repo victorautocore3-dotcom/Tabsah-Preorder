@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-pink: #E8005F;
+  --color-brand-pink-dark: #C4004F;
+  --color-brand-purple: #52005C;
+  --color-brand-purple-dark: #3D0045;
+  --color-brand-ink: #222222;
+  --color-brand-tint: #FFF1F6;
+  --color-brand-border: #F0D9E3;
+
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    color: #222222;
+    background-color: #FFFFFF;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    color: #222222;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+  }
+
+  button, a, input, select, textarea {
+    outline-color: #E8005F;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

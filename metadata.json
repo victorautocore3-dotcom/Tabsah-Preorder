@@ -1,0 +1,6 @@
+{
+  "name": "Pre Order With Tabsah",
+  "description": "Curated Nigerian pre-order store. Secure quality products with a deposit and pay the balance before delivery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
