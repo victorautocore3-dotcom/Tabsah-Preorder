@@ -3,6 +3,7 @@ import {
   calculateDepositAndBalance,
   formatArrivalDate,
   formatNaira,
+  getLowestVariant,
   Product,
 } from '../data/storeData';
 import { useStore } from '../context/StoreContext';
@@ -15,8 +16,11 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { categories, navigate, addToCart, settings } = useStore();
   const category = categories.find((c) => c.slug === product.categorySlug);
+  const lowestVariant = getLowestVariant(product);
+  const hasVariants = lowestVariant !== null;
+  const displayPrice = lowestVariant ? lowestVariant.priceNaira : product.priceNaira;
   const minUpfrontPct = Math.min(...settings.upfrontOptions);
-  const { deposit } = calculateDepositAndBalance(product.priceNaira, minUpfrontPct);
+  const { deposit } = calculateDepositAndBalance(displayPrice, minUpfrontPct);
 
   return (
     <article className="group flex flex-col min-w-0 max-w-full">
@@ -63,7 +67,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
         <div className="mt-2.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <span className="text-base font-semibold text-[#222222] tabular-nums">
-            {formatNaira(product.priceNaira)}
+            {hasVariants ? `From ${formatNaira(displayPrice)}` : formatNaira(displayPrice)}
           </span>
           <span className="text-sm font-medium text-[#E8005F] tabular-nums">
             Deposit from {formatNaira(deposit)}
@@ -82,7 +86,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <button
             type="button"
             disabled={!product.isPreOrderOpen}
-            onClick={() => addToCart(product.id, 1)}
+            onClick={() => addToCart(product.id, 1, lowestVariant?.label)}
             className={`text-[13px] tracking-[0.13em] uppercase font-semibold transition-colors whitespace-nowrap cursor-pointer ${
               product.isPreOrderOpen
                 ? 'text-[#E8005F] hover:text-[#52005C] underline underline-offset-4'

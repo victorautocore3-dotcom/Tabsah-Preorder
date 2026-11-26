@@ -333,7 +333,7 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                   <div className="divide-y divide-[#EFE5EA] border-t border-b border-[#EFE5EA]">
                     {selectedOrder.items.map((item) => (
                       <div
-                        key={item.productId}
+                        key={`${item.productId}-${item.variantLabel ?? 'default'}`}
                         className="py-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4"
                       >
                         <div className="flex items-center gap-4 sm:gap-5 min-w-0">
@@ -348,6 +348,11 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                             <p className="font-display text-xl font-medium text-[#222222] break-words">
                               {item.productName}
                             </p>
+                            {item.variantLabel && (
+                              <p className="text-sm font-medium text-[#52005C] mt-0.5">
+                                Option: {item.variantLabel}
+                              </p>
+                            )}
                             <p className="text-sm text-[#666666] mt-0.5 tabular-nums">
                               Qty {item.quantity} · {formatNaira(item.unitPriceNaira)} each
                             </p>
@@ -423,7 +428,12 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                     </div>
 
                     <p className="text-base text-[#4A4A4A]">
-                      {order.items.map((i) => `${i.productName} (x${i.quantity})`).join(', ')}
+                      {order.items
+                        .map(
+                          (i) =>
+                            `${i.productName}${i.variantLabel ? ` [${i.variantLabel}]` : ''} (x${i.quantity})`
+                        )
+                        .join(', ')}
                     </p>
 
                     <p className="text-[13px] font-medium tracking-[0.12em] uppercase text-[#52005C]">

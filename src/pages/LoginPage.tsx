@@ -20,7 +20,11 @@ export const LoginPage: React.FC = () => {
       setError(res.error ?? 'Could not sign in.');
       return;
     }
-    navigate({ page: 'account', tab: 'orders' });
+    if (res.isAdmin) {
+      navigate({ page: 'admin', tab: 'overview' });
+    } else {
+      navigate({ page: 'account', tab: 'orders' });
+    }
   };
 
   const handleRegister = (e: React.FormEvent) => {
@@ -41,7 +45,11 @@ export const LoginPage: React.FC = () => {
       setError(res.error ?? 'Could not create account.');
       return;
     }
-    navigate({ page: 'account', tab: 'orders' });
+    if (res.isAdmin) {
+      navigate({ page: 'admin', tab: 'overview' });
+    } else {
+      navigate({ page: 'account', tab: 'orders' });
+    }
   };
 
   const handleDemoCustomerLogin = () => {
@@ -301,27 +309,6 @@ export const LoginPage: React.FC = () => {
               className="w-full py-3.5 px-4 bg-[#52005C] hover:bg-[#3D0045] text-white text-[13px] tracking-[0.14em] uppercase font-semibold transition-colors cursor-pointer"
             >
               Sign In as Amaka Okafor
-            </button>
-          </div>
-
-          <div className="border border-[#F0D9E3] bg-white p-7 space-y-3">
-            <p className="text-[13px] tracking-[0.18em] uppercase font-medium text-[#52005C]">
-              Store Operations
-            </p>
-            <h2 className="font-display text-2xl font-medium text-[#222222]">
-              Seller Admin Portal
-            </h2>
-            <p className="text-base text-[#555555] leading-relaxed">
-              Manage pre-order products, open or close batches, update customer order statuses,
-              review payments, and edit store settings.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate({ page: 'admin', tab: 'overview' })}
-              className="pt-1 inline-flex items-center gap-2 text-[13px] tracking-[0.14em] uppercase font-semibold text-[#E8005F] hover:text-[#52005C] underline underline-offset-4 cursor-pointer"
-            >
-              <span>Open Admin Dashboard</span>
-              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

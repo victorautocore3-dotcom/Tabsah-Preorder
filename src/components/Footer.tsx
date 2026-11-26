@@ -152,15 +152,6 @@ export const Footer: React.FC = () => {
                   Customer Login
                 </button>
               </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => navigate({ page: 'admin', tab: 'overview' })}
-                  className="hover:text-white transition-colors cursor-pointer text-left"
-                >
-                  Seller Admin Dashboard
-                </button>
-              </li>
             </ul>
             <div className="mt-6 pt-5 border-t border-white/15 text-sm text-white/75 space-y-1.5 leading-relaxed break-words">
               <p className="text-white font-medium">{settings.businessName}</p>

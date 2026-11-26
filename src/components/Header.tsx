@@ -5,7 +5,7 @@ import { formatNaira } from '../data/storeData';
 import { BrandMark } from './BrandMark';
 
 export const Header: React.FC = () => {
-  const { route, navigate, cartCount, currentCustomer, products } = useStore();
+  const { route, navigate, cartCount, currentCustomer, isAdmin, products } = useStore();
   const [searchInput, setSearchInput] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -86,7 +86,9 @@ export const Header: React.FC = () => {
                   >
                     <span className="text-base text-[#222222] truncate">{item.name}</span>
                     <span className="text-sm font-semibold text-[#E8005F] tabular-nums shrink-0">
-                      {formatNaira(item.priceNaira)}
+                      {item.variants && item.variants.length > 0
+                        ? `From ${formatNaira(item.priceNaira)}`
+                        : formatNaira(item.priceNaira)}
                     </span>
                   </button>
                 ))}
@@ -130,24 +132,19 @@ export const Header: React.FC = () => {
               >
                 Contact
               </button>
-              <button
-                type="button"
-                onClick={() => go({ page: 'admin', tab: 'overview' })}
-                className={`whitespace-nowrap shrink-0 cursor-pointer transition-colors hover:text-[#E8005F] hover:underline decoration-[#E8005F] underline-offset-8 ${
-                  route.page === 'admin'
-                    ? 'text-[#E8005F] underline'
-                    : 'text-[#52005C]'
-                }`}
-              >
-                Admin
-              </button>
             </nav>
 
             <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
               <button
                 type="button"
                 onClick={() =>
-                  go(currentCustomer ? { page: 'account', tab: 'orders' } : { page: 'login' })
+                  go(
+                    isAdmin
+                      ? { page: 'admin', tab: 'overview' }
+                      : currentCustomer
+                        ? { page: 'account', tab: 'orders' }
+                        : { page: 'login' }
+                  )
                 }
                 aria-label="Account"
                 className="inline-flex items-center gap-1.5 sm:gap-2 p-1.5 sm:px-0 sm:py-2 text-[#222222] hover:text-[#E8005F] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
@@ -224,18 +221,17 @@ export const Header: React.FC = () => {
             <button
               type="button"
               onClick={() =>
-                go(currentCustomer ? { page: 'account', tab: 'orders' } : { page: 'login' })
+                go(
+                  isAdmin
+                    ? { page: 'admin', tab: 'overview' }
+                    : currentCustomer
+                      ? { page: 'account', tab: 'orders' }
+                      : { page: 'login' }
+                )
               }
               className="text-left py-2 border-b border-white/15 text-white hover:text-[#FFB3D1]"
             >
-              {currentCustomer ? 'My Orders' : 'Sign In'}
-            </button>
-            <button
-              type="button"
-              onClick={() => go({ page: 'admin', tab: 'overview' })}
-              className="text-left py-2 border-b border-white/15 text-white hover:text-[#FFB3D1]"
-            >
-              Admin
+              {isAdmin ? 'My Account' : currentCustomer ? 'My Orders' : 'Sign In'}
             </button>
             <button
               type="button"

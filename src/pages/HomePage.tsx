@@ -35,33 +35,33 @@ export const HomePage: React.FC = () => {
     {
       id: 'slide-2',
       image: HERO_SLIDE_BAGS_IMAGE,
-      alt: 'Hardshell carry-on cabin suitcase with brushed metallic handle',
-      kicker: 'Bags and Luggage',
+      alt: 'Curated home and everyday essentials',
+      kicker: 'Office and Everyday Comfort',
       headline: 'Made for Lagos weekdays and Abuja weekends.',
       subline:
-        'Polycarbonate cabin luggage and structured pebbled leather totes, reserved with 50%, 75%, or 100% upfront payment.',
-      ctaLabel: 'Shop Bags and Luggage',
-      onAction: () => navigate({ page: 'shop', categorySlug: 'bags-and-luggage' }),
+        'Ergonomic seating, UV umbrellas, and everyday finds reserved with 50%, 75%, or 100% upfront payment.',
+      ctaLabel: 'Shop Office Supplies',
+      onAction: () => navigate({ page: 'shop', categorySlug: 'office-and-school-supplies' }),
     },
     {
       id: 'slide-3',
       image: HERO_SLIDE_KITCHEN_IMAGE,
-      alt: 'Dual basket digital air fryer in matte black and brushed stainless steel',
+      alt: 'Curated home and kitchen pieces',
       kicker: 'Home and Kitchen',
-      headline: 'Thoughtful appliances for calmer kitchens.',
+      headline: 'Thoughtful pieces for calmer homes.',
       subline:
-        'Dual basket air fryers, portable glass blenders, and rechargeable standing fans checked for Nigerian voltage.',
+        'Insulated water flasks, shoe cabinets, lounge seating, memory foam mattresses, and ceiling chandeliers.',
       ctaLabel: 'Shop Home and Kitchen',
       onAction: () => navigate({ page: 'shop', categorySlug: 'home-and-kitchen' }),
     },
     {
       id: 'slide-4',
       image: HERO_SLIDE_FASHION_IMAGE,
-      alt: 'Tailored linen shirt paired with warm cream pleated trousers',
+      alt: 'Curated knitwear and loungewear',
       kicker: 'Fashion and Clothing',
-      headline: 'Easy tailoring built for warm afternoons.',
+      headline: 'Easy pieces built for warm afternoons.',
       subline:
-        'Breathable linen co-ord sets and structured blazers arriving in our December Lagos batch.',
+        'Retro knitwear shirts and heart-print pyjama sets arriving in our December Lagos batch.',
       ctaLabel: 'Shop Fashion and Clothing',
       onAction: () => navigate({ page: 'shop', categorySlug: 'fashion-and-clothing' }),
     },
@@ -458,17 +458,17 @@ export const HomePage: React.FC = () => {
                 Made for Lagos weekdays and Abuja weekends.
               </h2>
               <p className="text-base text-white/90 leading-relaxed max-w-xl">
-                From full-grain pebbled leather totes and polycarbonate cabin luggage to brushed
-                suede loafers and breathable linen sets, we pick pieces that travel lightly and
-                age gracefully in Nigerian weather.
+                From comfortable seating, ceiling lighting, and large water flasks to everyday
+                knitwear, lounge sets, and portable fans, every piece is chosen for practical
+                everyday living across Nigeria.
               </p>
               <div className="pt-3 flex flex-wrap items-center gap-8">
                 <button
                   type="button"
-                  onClick={() => navigate({ page: 'shop', categorySlug: 'bags-and-luggage' })}
+                  onClick={() => navigate({ page: 'shop', categorySlug: 'home-and-kitchen' })}
                   className="inline-flex items-center gap-2.5 text-[13px] tracking-[0.18em] uppercase font-semibold text-white hover:text-[#FFB3D1] underline underline-offset-8 transition-colors cursor-pointer"
                 >
-                  <span>Bags and Luggage</span>
+                  <span>Home and Kitchen</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
                 <button
@@ -502,8 +502,8 @@ export const HomePage: React.FC = () => {
             <div className="mt-12 pt-10 border-t border-[#EFE5EA] grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
               <div>
                 <p className="text-base text-[#4A4A4A] leading-relaxed">
-                  &ldquo;My dual basket air fryer arrived two days ahead of schedule and came with
-                  the exact UK plug promised.&rdquo;
+                  &ldquo;My 72 Hours Water Flask and rechargeable fan arrived on schedule and were
+                  neatly packed after inspection in Lagos.&rdquo;
                 </p>
                 <p className="mt-3 text-[13px] tracking-[0.13em] uppercase text-[#666666]">
                   Tunde Adeyemi, Ikeja
@@ -520,8 +520,8 @@ export const HomePage: React.FC = () => {
               </div>
               <div>
                 <p className="text-base text-[#4A4A4A] leading-relaxed">
-                  &ldquo;The leather work tote feels substantial and well stitched. Easily the most
-                  transparent pre-order store I have used.&rdquo;
+                  &ldquo;The ergonomic chair feels sturdy and comfortable for long workdays. Easily
+                  the most transparent pre-order store I have used.&rdquo;
                 </p>
                 <p className="mt-3 text-[13px] tracking-[0.13em] uppercase text-[#666666]">
                   Ngozi Nwosu, Port Harcourt

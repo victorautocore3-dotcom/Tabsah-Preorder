@@ -4,6 +4,7 @@ import {
   calculateDepositAndBalance,
   Category,
   CustomerAccount,
+  getLowestVariant,
   INITIAL_CATEGORIES,
   INITIAL_CUSTOMERS,
   INITIAL_ORDERS,
@@ -15,6 +16,8 @@ import {
   PaymentRecord,
   Product,
 } from '../data/storeData';
+
+export const ADMIN_EMAIL = 'toluwalopeesther80@gmail.com';
 
 export type RouteView =
   | { page: 'home' }
@@ -29,6 +32,7 @@ export type RouteView =
 
 export interface CartItem {
   productId: string;
+  variantLabel?: string;
   quantity: number;
 }
 
@@ -56,29 +60,40 @@ interface StoreContextValue {
   payments: PaymentRecord[];
   customers: CustomerAccount[];
   currentCustomer: CustomerAccount | null;
+  isAdmin: boolean;
+  hasAdminAccount: boolean;
   settings: StoreConfig;
   cart: CartItem[];
   cartCount: number;
-  cartDetailedItems: { product: Product; quantity: number; lineTotal: number }[];
+  cartDetailedItems: {
+    cartKey: string;
+    product: Product;
+    variantLabel?: string;
+    unitPriceNaira: number;
+    quantity: number;
+    lineTotal: number;
+  }[];
   cartSubtotal: number;
   toast: ToastMessage | null;
   showToast: (text: string) => void;
 
   // Cart actions
-  addToCart: (productId: string, quantity?: number) => void;
-  updateCartQuantity: (productId: string, quantity: number) => void;
-  removeFromCart: (productId: string) => void;
+  addToCart: (productId: string, quantity?: number, variantLabel?: string) => void;
+  updateCartQuantity: (productId: string, quantity: number, variantLabel?: string) => void;
+  removeFromCart: (productId: string, variantLabel?: string) => void;
   clearCart: () => void;
 
   // Auth & customer actions
-  loginCustomer: (email: string, password: string) => { ok: boolean; error?: string };
+  loginCustomer: (email: string, password: string) => { ok: boolean; isAdmin?: boolean; error?: string };
   registerCustomer: (data: {
     name: string;
     email: string;
     whatsApp: string;
     deliveryAddress: string;
     password: string;
-  }) => { ok: boolean; error?: string };
+  }) => { ok: boolean; isAdmin?: boolean; error?: string };
+  loginAdmin: (email: string, password: string) => { ok: boolean; error?: string };
+  setupAdminAccount: (email: string, password: string) => { ok: boolean; error?: string };
   logoutCustomer: () => void;
   updateCustomerDetails: (updates: {
     name: string;
@@ -105,12 +120,12 @@ interface StoreContextValue {
 }
 
 const STORAGE_KEYS = {
-  products: 'tabsah_products_v2',
-  orders: 'tabsah_orders_v2',
-  payments: 'tabsah_payments_v2',
+  products: 'tabsah_products_v3',
+  orders: 'tabsah_orders_v3',
+  payments: 'tabsah_payments_v3',
   customers: 'tabsah_customers_v2',
   currentCustomerId: 'tabsah_current_customer_v2',
-  cart: 'tabsah_cart_v2',
+  cart: 'tabsah_cart_v3',
   settings: 'tabsah_settings_v3',
 };
 
@@ -148,10 +163,19 @@ function slugify(input: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
+function isAdminLocation(): boolean {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+  const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+  return path === '/admin' || hash === 'admin';
+}
+
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [route, setRoute] = useState<RouteView>({ page: 'home' });
+  const [route, setRoute] = useState<RouteView>(() =>
+    isAdminLocation() ? { page: 'admin', tab: 'overview' } : { page: 'home' }
+  );
   const [categories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [products, setProducts] = useState<Product[]>(() =>
     readStorage<Product[]>(STORAGE_KEYS.products, INITIAL_PRODUCTS)
@@ -202,6 +226,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => writeStorage(STORAGE_KEYS.cart, cart), [cart]);
   useEffect(() => writeStorage(STORAGE_KEYS.settings, settings), [settings]);
 
+  useEffect(() => {
+    const syncAdminLocation = () => {
+      if (isAdminLocation()) {
+        setRoute({ page: 'admin', tab: 'overview' });
+      }
+    };
+    window.addEventListener('hashchange', syncAdminLocation);
+    window.addEventListener('popstate', syncAdminLocation);
+    return () => {
+      window.removeEventListener('hashchange', syncAdminLocation);
+      window.removeEventListener('popstate', syncAdminLocation);
+    };
+  }, []);
+
   const showToast = (text: string) => {
     const id = Date.now();
     setToast({ id, text });
@@ -212,6 +250,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const navigate = (next: RouteView) => {
     setRoute(next);
+    if (next.page !== 'admin' && isAdminLocation()) {
+      try {
+        window.history.replaceState(null, '', '/');
+      } catch {
+        // Ignore history restrictions in sandboxed environments.
+      }
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -220,18 +265,59 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [customers, currentCustomerId]
   );
 
+  const hasAdminAccount = useMemo(
+    () => customers.some((c) => c.email.toLowerCase() === ADMIN_EMAIL),
+    [customers]
+  );
+
+  const isAdmin = useMemo(
+    () => currentCustomer?.email.toLowerCase() === ADMIN_EMAIL,
+    [currentCustomer]
+  );
+
   const cartDetailedItems = useMemo(() => {
     return cart
       .map((item) => {
         const product = products.find((p) => p.id === item.productId);
         if (!product) return null;
+        let resolvedVariantLabel: string | undefined;
+        let unitPriceNaira = product.priceNaira;
+
+        if (product.variants && product.variants.length > 0) {
+          const matched =
+            product.variants.find((v) => v.label === item.variantLabel) ??
+            getLowestVariant(product);
+          if (matched) {
+            resolvedVariantLabel = matched.label;
+            unitPriceNaira = matched.priceNaira;
+          }
+        }
+
+        const cartKey = resolvedVariantLabel
+          ? `${product.id}::${resolvedVariantLabel}`
+          : product.id;
+
         return {
+          cartKey,
           product,
+          variantLabel: resolvedVariantLabel,
+          unitPriceNaira,
           quantity: item.quantity,
-          lineTotal: product.priceNaira * item.quantity,
+          lineTotal: unitPriceNaira * item.quantity,
         };
       })
-      .filter((entry): entry is { product: Product; quantity: number; lineTotal: number } => entry !== null);
+      .filter(
+        (
+          entry
+        ): entry is {
+          cartKey: string;
+          product: Product;
+          variantLabel: string | undefined;
+          unitPriceNaira: number;
+          quantity: number;
+          lineTotal: number;
+        } => entry !== null
+      );
   }, [cart, products]);
 
   const cartCount = useMemo(
@@ -244,38 +330,63 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [cartDetailedItems]
   );
 
-  const addToCart = (productId: string, quantity = 1) => {
+  const addToCart = (productId: string, quantity = 1, variantLabel?: string) => {
     const product = products.find((p) => p.id === productId);
     if (!product || !product.isPreOrderOpen) {
       showToast('This item is currently closed for pre-order.');
       return;
     }
+
+    let resolvedVariantLabel: string | undefined;
+    if (product.variants && product.variants.length > 0) {
+      const matched =
+        product.variants.find((v) => v.label === variantLabel) ?? getLowestVariant(product);
+      resolvedVariantLabel = matched?.label;
+    }
+
     setCart((prev) => {
-      const existing = prev.find((entry) => entry.productId === productId);
+      const existing = prev.find(
+        (entry) =>
+          entry.productId === productId &&
+          (entry.variantLabel ?? undefined) === resolvedVariantLabel
+      );
       if (existing) {
         return prev.map((entry) =>
-          entry.productId === productId
+          entry.productId === productId &&
+          (entry.variantLabel ?? undefined) === resolvedVariantLabel
             ? { ...entry, quantity: entry.quantity + quantity }
             : entry
         );
       }
-      return [...prev, { productId, quantity }];
+      return [...prev, { productId, variantLabel: resolvedVariantLabel, quantity }];
     });
-    showToast(`Added ${product.name} to your cart.`);
-  };
 
-  const updateCartQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(productId);
-      return;
-    }
-    setCart((prev) =>
-      prev.map((entry) => (entry.productId === productId ? { ...entry, quantity } : entry))
+    showToast(
+      `Added ${product.name}${resolvedVariantLabel ? ` (${resolvedVariantLabel})` : ''} to your cart.`
     );
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((entry) => entry.productId !== productId));
+  const updateCartQuantity = (productId: string, quantity: number, variantLabel?: string) => {
+    if (quantity <= 0) {
+      removeFromCart(productId, variantLabel);
+      return;
+    }
+    setCart((prev) =>
+      prev.map((entry) =>
+        entry.productId === productId && (entry.variantLabel ?? undefined) === variantLabel
+          ? { ...entry, quantity }
+          : entry
+      )
+    );
+  };
+
+  const removeFromCart = (productId: string, variantLabel?: string) => {
+    setCart((prev) =>
+      prev.filter(
+        (entry) =>
+          !(entry.productId === productId && (entry.variantLabel ?? undefined) === variantLabel)
+      )
+    );
   };
 
   const clearCart = () => setCart([]);
@@ -287,8 +398,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return { ok: false, error: 'The email or password does not match our records.' };
     }
     setCurrentCustomerId(found.id);
+    const adminMatch = found.email.toLowerCase() === ADMIN_EMAIL;
     showToast(`Welcome back, ${found.name.split(' ')[0]}.`);
-    return { ok: true };
+    return { ok: true, isAdmin: adminMatch };
   };
 
   const registerCustomer = (data: {
@@ -313,7 +425,57 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     setCustomers((prev) => [...prev, newCustomer]);
     setCurrentCustomerId(newCustomer.id);
+    const adminMatch = cleanEmail === ADMIN_EMAIL;
     showToast(`Account created for ${newCustomer.name}.`);
+    return { ok: true, isAdmin: adminMatch };
+  };
+
+  const loginAdmin = (email: string, password: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail !== ADMIN_EMAIL) {
+      return { ok: false, error: 'Only the authorized store admin email can sign in here.' };
+    }
+    const found = customers.find((c) => c.email.toLowerCase() === ADMIN_EMAIL);
+    if (!found) {
+      return {
+        ok: false,
+        error: 'No password has been set for this admin email yet. Please set your password first.',
+      };
+    }
+    if (found.password !== password) {
+      return { ok: false, error: 'The email or password does not match our records.' };
+    }
+    setCurrentCustomerId(found.id);
+    showToast('Signed in to store admin.');
+    return { ok: true };
+  };
+
+  const setupAdminAccount = (email: string, password: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail !== ADMIN_EMAIL) {
+      return { ok: false, error: 'Only the authorized store admin email can sign in here.' };
+    }
+    if (hasAdminAccount) {
+      return {
+        ok: false,
+        error: 'An admin password is already set. Please sign in with your password.',
+      };
+    }
+    if (password.trim().length < 6) {
+      return { ok: false, error: 'Please choose a password with at least 6 characters.' };
+    }
+    const adminAccount: CustomerAccount = {
+      id: `admin-${Date.now()}`,
+      name: 'Tabsah Store Owner',
+      email: ADMIN_EMAIL,
+      whatsApp: settings.storeWhatsAppNumber,
+      deliveryAddress: settings.storeAddress,
+      password,
+      createdAt: getTodayIso(),
+    };
+    setCustomers((prev) => [...prev, adminAccount]);
+    setCurrentCustomerId(adminAccount.id);
+    showToast('Admin password saved. Welcome back.');
     return { ok: true };
   };
 
@@ -330,18 +492,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     deliveryAddress: string;
   }) => {
     if (!currentCustomerId) return;
+    const requestedEmail = updates.email.trim().toLowerCase();
     setCustomers((prev) =>
-      prev.map((c) =>
-        c.id === currentCustomerId
-          ? {
-              ...c,
-              name: updates.name.trim(),
-              whatsApp: updates.whatsApp.trim(),
-              email: updates.email.trim().toLowerCase(),
-              deliveryAddress: updates.deliveryAddress.trim(),
-            }
-          : c
-      )
+      prev.map((c) => {
+        if (c.id !== currentCustomerId) return c;
+        const nextEmail =
+          requestedEmail === ADMIN_EMAIL && c.email.toLowerCase() !== ADMIN_EMAIL
+            ? c.email
+            : requestedEmail;
+        return {
+          ...c,
+          name: updates.name.trim(),
+          whatsApp: updates.whatsApp.trim(),
+          email: nextEmail,
+          deliveryAddress: updates.deliveryAddress.trim(),
+        };
+      })
     );
     showToast('Your account details have been saved.');
   };
@@ -358,31 +524,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const cleanEmail = payload.email.trim().toLowerCase();
 
     if (!activeCustomerId) {
-      const existing = customers.find((c) => c.email.toLowerCase() === cleanEmail);
-      if (existing) {
-        activeCustomerId = existing.id;
-        setCurrentCustomerId(existing.id);
+      if (cleanEmail === ADMIN_EMAIL) {
+        // Never auto-authenticate a guest checkout session into the single admin account.
+        activeCustomerId = `guest-${Date.now()}`;
       } else {
-        const created: CustomerAccount = {
-          id: `cust-${Date.now()}`,
-          name: payload.name.trim(),
-          email: cleanEmail,
-          whatsApp: payload.whatsApp.trim(),
-          deliveryAddress: payload.deliveryAddress.trim(),
-          password: payload.password || 'tabsah2026',
-          createdAt: getTodayIso(),
-        };
-        setCustomers((prev) => [...prev, created]);
-        activeCustomerId = created.id;
-        setCurrentCustomerId(created.id);
+        const existing = customers.find((c) => c.email.toLowerCase() === cleanEmail);
+        if (existing) {
+          activeCustomerId = existing.id;
+          setCurrentCustomerId(existing.id);
+        } else {
+          const created: CustomerAccount = {
+            id: `cust-${Date.now()}`,
+            name: payload.name.trim(),
+            email: cleanEmail,
+            whatsApp: payload.whatsApp.trim(),
+            deliveryAddress: payload.deliveryAddress.trim(),
+            password: payload.password || 'tabsah2026',
+            createdAt: getTodayIso(),
+          };
+          setCustomers((prev) => [...prev, created]);
+          activeCustomerId = created.id;
+          setCurrentCustomerId(created.id);
+        }
       }
     }
 
     const orderItems: OrderItem[] = cartDetailedItems.map((entry) => ({
       productId: entry.product.id,
       productName: entry.product.name,
+      variantLabel: entry.variantLabel,
       productImage: entry.product.image,
-      unitPriceNaira: entry.product.priceNaira,
+      unitPriceNaira: entry.unitPriceNaira,
       quantity: entry.quantity,
       expectedArrivalDate: entry.product.expectedArrivalDate,
     }));
@@ -492,28 +664,48 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addProduct = (product: Omit<Product, 'id' | 'slug'>) => {
+    if (!isAdmin) return;
+    const cleanedGallery = (product.gallery ?? []).map((img) => img.trim()).filter(Boolean);
+    const primaryImage = product.image.trim() || cleanedGallery[0] || '';
+    if (!primaryImage) return;
+    const finalGallery = cleanedGallery.length > 0 ? cleanedGallery : [primaryImage];
+
     const id = `prod-${Date.now()}`;
     const slug = `${slugify(product.name)}-${String(Date.now()).slice(-4)}`;
     const newProduct: Product = {
       ...product,
       id,
       slug,
-      gallery: product.gallery.length > 0 ? product.gallery : [product.image],
+      image: primaryImage,
+      gallery: finalGallery,
     };
     setProducts((prev) => [newProduct, ...prev]);
     showToast(`Added ${newProduct.name} to the store.`);
   };
 
   const updateProduct = (productId: string, updates: Partial<Product>) => {
+    if (!isAdmin) return;
     setProducts((prev) =>
       prev.map((p) => {
         if (p.id !== productId) return p;
-        const nextImage = updates.image ?? p.image;
+        const cleanedGallery =
+          updates.gallery !== undefined
+            ? updates.gallery.map((img) => img.trim()).filter(Boolean)
+            : undefined;
+        const nextImage =
+          updates.image !== undefined ? updates.image.trim() : cleanedGallery?.[0] ?? p.image;
+        if (!nextImage) return p;
+        const nextGallery =
+          cleanedGallery && cleanedGallery.length > 0
+            ? cleanedGallery
+            : updates.image && updates.image !== p.image
+              ? [nextImage]
+              : p.gallery;
         return {
           ...p,
           ...updates,
           image: nextImage,
-          gallery: updates.gallery ?? [nextImage],
+          gallery: nextGallery,
         };
       })
     );
@@ -521,6 +713,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const toggleProductPreOrder = (productId: string) => {
+    if (!isAdmin) return;
     setProducts((prev) =>
       prev.map((p) => (p.id === productId ? { ...p, isPreOrderOpen: !p.isPreOrderOpen } : p))
     );
@@ -528,6 +721,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
+    if (!isAdmin) return;
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id !== orderId) return o;
@@ -547,6 +741,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     storeWhatsAppNumber: string;
     deliveryFees: DeliveryZoneFee[];
   }) => {
+    if (!isAdmin) return;
     setSettings((prev) => {
       const validDefault = prev.upfrontOptions.includes(updates.defaultUpfrontPercentage)
         ? updates.defaultUpfrontPercentage
@@ -577,6 +772,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     payments,
     customers,
     currentCustomer,
+    isAdmin,
+    hasAdminAccount,
     settings,
     cart,
     cartCount,
@@ -590,6 +787,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     clearCart,
     loginCustomer,
     registerCustomer,
+    loginAdmin,
+    setupAdminAccount,
     logoutCustomer,
     updateCustomerDetails,
     placeDemoOrder,

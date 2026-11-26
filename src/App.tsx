@@ -15,11 +15,11 @@ import { CartPage } from './pages/CartPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { LoginPage } from './pages/LoginPage';
 import { CustomerDashboardPage } from './pages/CustomerDashboardPage';
-import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { AdminDashboardPage, AdminLoginGate } from './pages/AdminDashboardPage';
 import { InfoPages } from './pages/InfoPages';
 
 const AppShell: React.FC = () => {
-  const { route, toast } = useStore();
+  const { route, toast, isAdmin } = useStore();
 
   const renderPage = () => {
     switch (route.page) {
@@ -48,7 +48,7 @@ const AppShell: React.FC = () => {
           />
         );
       case 'admin':
-        return <AdminDashboardPage initialTab={route.tab} />;
+        return isAdmin ? <AdminDashboardPage initialTab={route.tab} /> : <AdminLoginGate />;
       case 'info':
         return <InfoPages slug={route.slug} />;
       default:

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Check, MessageCircle, Minus, Plus } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import {
   calculateDepositAndBalance,
   formatArrivalDate,
   formatNaira,
+  getLowestVariant,
 } from '../data/storeData';
 import { ProductImage } from '../components/ProductImage';
 import { ProductCard } from '../components/ProductCard';
@@ -24,13 +25,33 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
     .filter((p) => p.id !== product.id && (p.categorySlug === product.categorySlug || p.featured))
     .slice(0, 4);
 
+  const galleryImages = product.gallery.length > 0 ? product.gallery : [product.image];
+  const lowestVariant = getLowestVariant(product);
+
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [selectedVariantLabel, setSelectedVariantLabel] = useState<string>(
+    lowestVariant?.label ?? ''
+  );
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+    setQuantity(1);
+    setJustAdded(false);
+    const nextLowest = getLowestVariant(product);
+    setSelectedVariantLabel(nextLowest?.label ?? '');
+  }, [product.id]);
+
+  const selectedVariant =
+    product.variants?.find((v) => v.label === selectedVariantLabel) ?? lowestVariant;
+  const activeUnitPrice = selectedVariant ? selectedVariant.priceNaira : product.priceNaira;
+
   const minUpfrontPct = Math.min(...settings.upfrontOptions);
-  const lineFullTotal = product.priceNaira * quantity;
+  const lineFullTotal = activeUnitPrice * quantity;
   const { deposit, balance } = calculateDepositAndBalance(lineFullTotal, minUpfrontPct);
 
   const handleAddToCart = () => {
     if (!product.isPreOrderOpen) return;
-    addToCart(product.id, quantity);
+    addToCart(product.id, quantity, selectedVariant?.label);
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 2600);
   };
@@ -81,11 +102,37 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
         <div className="lg:col-span-7 space-y-5 min-w-0">
           <div className="aspect-[4/3] w-full bg-[#F8F5F7] overflow-hidden">
             <ProductImage
-              src={product.image}
-              alt={product.name}
+              src={galleryImages[activeImageIndex] ?? product.image}
+              alt={`${product.name} view ${activeImageIndex + 1}`}
               className="w-full h-full object-cover"
             />
           </div>
+
+          {galleryImages.length > 1 && (
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+              {galleryImages.map((imgSrc, idx) => {
+                const isActive = idx === activeImageIndex;
+                return (
+                  <button
+                    key={`${product.id}-thumb-${idx}`}
+                    type="button"
+                    onClick={() => setActiveImageIndex(idx)}
+                    aria-label={`View photo ${idx + 1} of ${galleryImages.length}`}
+                    aria-current={isActive ? 'true' : undefined}
+                    className={`aspect-square w-full bg-[#F8F5F7] overflow-hidden border-2 transition-colors cursor-pointer ${
+                      isActive ? 'border-[#E8005F]' : 'border-transparent hover:border-[#F0D9E3]'
+                    }`}
+                  >
+                    <ProductImage
+                      src={imgSrc}
+                      alt={`${product.name} thumbnail ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 pt-2 border-t border-[#EFE5EA] text-sm">
             <div className="pt-2 sm:pt-3 min-w-0">
@@ -134,12 +181,55 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
             {product.shortSummary}
           </p>
 
+          {/* Variant Selector */}
+          {product.variants && product.variants.length > 0 && (
+            <div className="mt-6 space-y-3">
+              <p className="text-[13px] tracking-[0.14em] uppercase font-semibold text-[#52005C]">
+                Select Option
+              </p>
+              <div
+                role="radiogroup"
+                aria-label={`Select option for ${product.name}`}
+                className="flex flex-wrap gap-2.5"
+              >
+                {product.variants.map((variant) => {
+                  const isSelected = selectedVariant?.label === variant.label;
+                  return (
+                    <button
+                      key={variant.label}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => setSelectedVariantLabel(variant.label)}
+                      className={`px-4 py-2.5 border-2 text-left transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'border-[#E8005F] bg-[#FFF1F6] text-[#222222]'
+                          : 'border-[#F0D9E3] bg-white text-[#4A4A4A] hover:border-[#52005C]'
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold">{variant.label}</span>
+                      <span
+                        className={`block text-sm tabular-nums ${
+                          isSelected ? 'text-[#E8005F] font-semibold' : 'text-[#666666]'
+                        }`}
+                      >
+                        {formatNaira(variant.priceNaira)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Price & Calm Hairline Deposit Breakdown */}
           <div className="mt-7 pt-6 pb-6 border-t border-b border-[#F0D9E3] space-y-4">
             <div className="flex items-baseline justify-between gap-4">
-              <span className="text-[13px] tracking-[0.14em] uppercase text-[#666666]">Full Price</span>
+              <span className="text-[13px] tracking-[0.14em] uppercase text-[#666666]">
+                {selectedVariant ? `Full Price (${selectedVariant.label})` : 'Full Price'}
+              </span>
               <span className="font-display text-4xl font-medium text-[#E8005F] tabular-nums">
-                {formatNaira(product.priceNaira)}
+                {formatNaira(activeUnitPrice)}
               </span>
             </div>
 
@@ -248,7 +338,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
 
           <div className="mt-6 pt-5 border-t border-[#EFE5EA] flex flex-wrap items-center justify-between gap-4 text-[13px]">
             <a
-              href={getWhatsAppUrl(`Hello Tabsah, I have a question about ${product.name}.`)}
+              href={getWhatsAppUrl(
+                `Hello Tabsah, I have a question about ${product.name}${
+                  selectedVariant ? ` (${selectedVariant.label})` : ''
+                }.`
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 tracking-[0.13em] uppercase font-semibold text-[#E8005F] hover:text-[#52005C]"

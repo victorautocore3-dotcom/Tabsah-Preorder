@@ -491,13 +491,18 @@ export const CheckoutPage: React.FC = () => {
           </div>
 
           <ul className="divide-y divide-[#F3E7EC] border-t border-b border-[#F3E7EC]">
-            {cartDetailedItems.map(({ product, quantity, lineTotal }) => (
-              <li key={product.id} className="py-3.5 flex items-start justify-between gap-3 text-base">
+            {cartDetailedItems.map(({ cartKey, product, variantLabel, quantity, lineTotal }) => (
+              <li key={cartKey} className="py-3.5 flex items-start justify-between gap-3 text-base">
                 <div>
                   <p className="font-medium text-[#222222]">
                     {product.name}{' '}
                     <span className="text-[#666666] font-normal">x {quantity}</span>
                   </p>
+                  {variantLabel && (
+                    <p className="text-sm font-medium text-[#52005C] mt-0.5">
+                      Option: {variantLabel}
+                    </p>
+                  )}
                   <p className="text-sm text-[#666666] mt-0.5">
                     Arrives {formatArrivalDate(product.expectedArrivalDate)}
                   </p>

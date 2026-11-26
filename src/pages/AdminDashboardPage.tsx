@@ -1,13 +1,19 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
+  ArrowRight,
   CreditCard,
   Edit3,
+  ImagePlus,
   LayoutDashboard,
+  Lock,
+  LogOut,
   Package,
   Plus,
   Search,
   Settings,
   ShoppingCart,
+  Trash2,
+  Upload,
   X,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
@@ -28,6 +34,164 @@ interface AdminDashboardPageProps {
   initialTab?: AdminTab;
 }
 
+function isSafeImageSource(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith('data:image/')) return true;
+  if (trimmed.startsWith('/')) return true;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+export const AdminLoginGate: React.FC = () => {
+  const { hasAdminAccount, loginAdmin, setupAdminAccount, navigate } = useStore();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!hasAdminAccount) {
+      if (password.trim().length < 6) {
+        setError('Please choose a password with at least 6 characters.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('The passwords do not match. Please enter the same password twice.');
+        return;
+      }
+      const res = setupAdminAccount(email, password);
+      if (!res.ok) {
+        setError(res.error ?? 'Could not complete admin setup.');
+      }
+      return;
+    }
+
+    const res = loginAdmin(email, password);
+    if (!res.ok) {
+      setError(res.error ?? 'Could not sign in.');
+    }
+  };
+
+  return (
+    <div className="w-full max-w-lg mx-auto px-4 sm:px-8 py-14 sm:py-20">
+      <div className="border border-[#F0D9E3] bg-white p-6 sm:p-10 space-y-6">
+        <div className="space-y-2 pb-5 border-b border-[#EFE5EA]">
+          <div className="inline-flex items-center gap-2 text-[13px] tracking-[0.18em] uppercase font-medium text-[#52005C]">
+            <Lock className="w-4 h-4 text-[#E8005F]" />
+            <span>Authorized Access Only</span>
+          </div>
+          <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222]">
+            {hasAdminAccount ? 'Store Admin Sign In' : 'Set Store Admin Password'}
+          </h1>
+          <p className="text-base text-[#555555] leading-relaxed">
+            {hasAdminAccount
+              ? 'Enter the authorized store admin email and password to manage products, orders, payments, and store settings.'
+              : 'Enter the authorized store admin email and choose a password (at least 6 characters) for your first sign in on this device.'}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label
+              htmlFor="admin-email"
+              className="block text-[13px] tracking-[0.11em] uppercase font-medium text-[#4A4A4A] mb-2"
+            >
+              Admin Email Address
+            </label>
+            <input
+              id="admin-email"
+              type="email"
+              required
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter authorized email"
+              className="w-full h-11 px-3.5 border border-[#F0D9E3] text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="admin-password"
+              className="block text-[13px] tracking-[0.11em] uppercase font-medium text-[#4A4A4A] mb-2"
+            >
+              {hasAdminAccount ? 'Password' : 'Create Password'}
+            </label>
+            <input
+              id="admin-password"
+              type="password"
+              required
+              minLength={hasAdminAccount ? undefined : 6}
+              autoComplete={hasAdminAccount ? 'current-password' : 'new-password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={hasAdminAccount ? 'Enter your password' : 'At least 6 characters'}
+              className="w-full h-11 px-3.5 border border-[#F0D9E3] text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
+            />
+          </div>
+
+          {!hasAdminAccount && (
+            <div>
+              <label
+                htmlFor="admin-confirm-password"
+                className="block text-[13px] tracking-[0.11em] uppercase font-medium text-[#4A4A4A] mb-2"
+              >
+                Confirm Password
+              </label>
+              <input
+                id="admin-confirm-password"
+                type="password"
+                required
+                minLength={6}
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter your password"
+                className="w-full h-11 px-3.5 border border-[#F0D9E3] text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
+              />
+            </div>
+          )}
+
+          {error && (
+            <p
+              role="alert"
+              className="text-base font-medium text-[#991B1B] bg-[#FEF2F2] border border-[#FECACA] px-4 py-3"
+            >
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            className="w-full h-12 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+          >
+            <span>{hasAdminAccount ? 'Sign In to Admin' : 'Save Password & Sign In'}</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </form>
+
+        <div className="pt-4 border-t border-[#EFE5EA] text-center">
+          <button
+            type="button"
+            onClick={() => navigate({ page: 'home' })}
+            className="text-[13px] tracking-[0.13em] uppercase font-medium text-[#52005C] hover:text-[#E8005F] cursor-pointer"
+          >
+            Return to Storefront
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   initialTab = 'overview',
 }) => {
@@ -42,6 +206,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     toggleProductPreOrder,
     updateOrderStatus,
     updateSettings,
+    logoutCustomer,
     navigate,
   } = useStore();
 
@@ -58,14 +223,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const [prodCategory, setProdCategory] = useState(
     categories[0]?.slug ?? 'gadgets-and-electronics'
   );
-  const [prodPrice, setProdPrice] = useState('45000');
-  const [prodArrival, setProdArrival] = useState('2026-12-12');
-  const [prodBatch, setProdBatch] = useState('TB-DEC-02');
+  const [prodPrice, setProdPrice] = useState('15000');
+  const [prodArrival, setProdArrival] = useState('2026-12-06');
+  const [prodBatch, setProdBatch] = useState('TAB-114');
   const [prodSummary, setProdSummary] = useState('');
   const [prodDesc, setProdDesc] = useState('');
-  const [prodImage, setProdImage] = useState(products[0]?.image ?? '');
+  const [prodImages, setProdImages] = useState<string[]>([]);
+  const [prodImageUrlInput, setProdImageUrlInput] = useState('');
+  const [prodImageError, setProdImageError] = useState('');
   const [prodOpen, setProdOpen] = useState(true);
   const [prodFeatured, setProdFeatured] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Settings Form State
   const [defaultUpfrontPct, setDefaultUpfrontPct] = useState<number>(
@@ -134,12 +302,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     setEditingProductId(null);
     setProdName('');
     setProdCategory(categories[0]?.slug ?? 'gadgets-and-electronics');
-    setProdPrice('55000');
-    setProdArrival('2026-12-15');
-    setProdBatch('TB-DEC-02');
+    setProdPrice('15000');
+    setProdArrival('2026-12-06');
+    setProdBatch('TAB-114');
     setProdSummary('');
     setProdDesc('');
-    setProdImage(categories[0]?.image ?? '');
+    setProdImages([]);
+    setProdImageUrlInput('');
+    setProdImageError('');
     setProdOpen(true);
     setProdFeatured(false);
     setProductModalOpen(true);
@@ -154,17 +324,70 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     setProdBatch(product.batchCode);
     setProdSummary(product.shortSummary);
     setProdDesc(product.description);
-    setProdImage(product.image);
+    const existingImages = (
+      product.gallery && product.gallery.length > 0
+        ? product.gallery
+        : product.image
+          ? [product.image]
+          : []
+    ).filter((img) => img.trim().length > 0);
+    setProdImages(existingImages);
+    setProdImageUrlInput('');
+    setProdImageError('');
     setProdOpen(product.isPreOrderOpen);
     setProdFeatured(product.featured);
     setProductModalOpen(true);
   };
 
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith('image/')) {
+        setProdImageError('Please select valid image files only (JPG, PNG, or WebP).');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string' && reader.result.startsWith('data:image/')) {
+          setProdImages((prev) => [...prev, reader.result as string]);
+          setProdImageError('');
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleAddImageUrl = () => {
+    const trimmed = prodImageUrlInput.trim();
+    if (!trimmed) return;
+    if (!isSafeImageSource(trimmed)) {
+      setProdImageError('Please enter a valid image URL starting with https://, http://, or /.');
+      return;
+    }
+    setProdImages((prev) => [...prev, trimmed]);
+    setProdImageUrlInput('');
+    setProdImageError('');
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setProdImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSaveProduct = (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanedImages = prodImages.map((img) => img.trim()).filter(isSafeImageSource);
+    if (cleanedImages.length === 0) {
+      setProdImageError('Please add at least one product picture before saving this product.');
+      return;
+    }
+
     const numericPrice = Math.max(1000, Number(prodPrice) || 1000);
-    const chosenCat = categories.find((c) => c.slug === prodCategory);
-    const fallbackImg = chosenCat?.image ?? products[0]?.image ?? '';
 
     if (editingProductId) {
       updateProduct(editingProductId, {
@@ -172,10 +395,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         categorySlug: prodCategory,
         priceNaira: numericPrice,
         expectedArrivalDate: prodArrival,
-        batchCode: prodBatch.trim() || 'TB-DEC-02',
+        batchCode: prodBatch.trim() || 'TAB-114',
         shortSummary: prodSummary.trim(),
         description: prodDesc.trim(),
-        image: prodImage.trim() || fallbackImg,
+        image: cleanedImages[0],
+        gallery: cleanedImages,
         isPreOrderOpen: prodOpen,
         featured: prodFeatured,
       });
@@ -185,17 +409,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         categorySlug: prodCategory,
         priceNaira: numericPrice,
         expectedArrivalDate: prodArrival,
-        batchCode: prodBatch.trim() || 'TB-DEC-02',
+        batchCode: prodBatch.trim() || 'TAB-114',
         shortSummary: prodSummary.trim() || 'Curated pre-order batch item.',
         description:
           prodDesc.trim() ||
           'Sourced directly for Pre Order With Tabsah customers with quality inspection in Lagos.',
-        image: prodImage.trim() || fallbackImg,
-        gallery: [prodImage.trim() || fallbackImg],
+        image: cleanedImages[0],
+        gallery: cleanedImages,
         isPreOrderOpen: prodOpen,
         featured: prodFeatured,
         specifications: [
-          { label: 'Batch Code', value: prodBatch.trim() || 'TB-DEC-02' },
+          { label: 'Batch Code', value: prodBatch.trim() || 'TAB-114' },
           { label: 'Expected Arrival', value: formatArrivalDate(prodArrival) },
         ],
       });
@@ -262,13 +486,21 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             })}
           </nav>
 
-          <div className="hidden lg:block mt-8 pt-5 border-t border-[#EFE5EA]">
+          <div className="mt-5 lg:mt-8 pt-4 lg:pt-5 border-t border-[#EFE5EA] flex flex-wrap lg:flex-col items-center lg:items-start gap-4">
             <button
               type="button"
               onClick={() => navigate({ page: 'home' })}
               className="text-[13px] font-medium tracking-[0.13em] uppercase text-[#E8005F] hover:text-[#52005C] cursor-pointer"
             >
               Return to Storefront
+            </button>
+            <button
+              type="button"
+              onClick={logoutCustomer}
+              className="inline-flex items-center gap-2 text-[13px] font-medium tracking-[0.13em] uppercase text-[#52005C] hover:text-[#E8005F] cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
             </button>
           </div>
         </aside>
@@ -495,7 +727,9 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                               {cat ? cat.name : product.categorySlug}
                             </td>
                             <td className="px-6 py-4 text-right text-base font-medium text-[#222222] tabular-nums whitespace-nowrap">
-                              {formatNaira(product.priceNaira)}
+                              {product.variants && product.variants.length > 0
+                                ? `From ${formatNaira(product.priceNaira)}`
+                                : formatNaira(product.priceNaira)}
                             </td>
                             <td className="px-6 py-4 text-sm text-[#4A4A4A] whitespace-nowrap">
                               {formatArrivalDate(product.expectedArrivalDate)}
@@ -979,7 +1213,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     type="text"
                     value={prodBatch}
                     onChange={(e) => setProdBatch(e.target.value)}
-                    placeholder="TB-DEC-02"
+                    placeholder="TAB-114"
                     className="w-full h-11 px-3.5 border border-[#F0D9E3] focus:border-[#E8005F] focus:outline-none text-base"
                   />
                 </div>
@@ -1008,6 +1242,110 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   onChange={(e) => setProdDesc(e.target.value)}
                   className="w-full p-3.5 border border-[#F0D9E3] focus:border-[#E8005F] focus:outline-none text-base"
                 />
+              </div>
+
+              {/* Product Pictures (Required) */}
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-[13px] font-medium tracking-[0.13em] uppercase text-[#222222]">
+                    Product Pictures <span className="text-[#E8005F]">*</span>
+                  </label>
+                  <span className="text-sm text-[#666666]">
+                    {prodImages.length} {prodImages.length === 1 ? 'picture' : 'pictures'} attached
+                  </span>
+                </div>
+
+                <div className="bg-[#FFF1F6] border border-[#F0D9E3] p-4 space-y-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input
+                      ref={fileInputRef}
+                      id="product-picture-upload"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageFileUpload}
+                      className="sr-only"
+                    />
+                    <label
+                      htmlFor="product-picture-upload"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#52005C] hover:bg-[#3D0045] text-white text-[13px] font-medium tracking-[0.12em] uppercase transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>Upload Picture</span>
+                    </label>
+                    <span className="text-sm text-[#555555]">
+                      JPG, PNG, or WebP. At least one picture is required.
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={prodImageUrlInput}
+                      onChange={(e) => setProdImageUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddImageUrl();
+                        }
+                      }}
+                      placeholder="Or paste an image URL (https://...)"
+                      className="flex-1 h-10 px-3 bg-white border border-[#F0D9E3] focus:border-[#E8005F] focus:outline-none text-sm text-[#222222]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddImageUrl}
+                      className="inline-flex items-center justify-center gap-1.5 px-4 h-10 border border-[#52005C] text-[#52005C] hover:bg-[#52005C] hover:text-white text-[13px] font-medium tracking-[0.1em] uppercase transition-colors cursor-pointer shrink-0"
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                      <span>Add URL</span>
+                    </button>
+                  </div>
+
+                  {prodImages.length > 0 ? (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-1">
+                      {prodImages.map((imgSrc, idx) => (
+                        <div
+                          key={`${idx}-${imgSrc.slice(0, 32)}`}
+                          className="relative group aspect-square bg-white border border-[#F0D9E3] overflow-hidden"
+                        >
+                          <ProductImage
+                            src={imgSrc}
+                            alt={`Product picture ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          {idx === 0 && (
+                            <span className="absolute left-1.5 top-1.5 px-1.5 py-0.5 bg-[#E8005F] text-white text-[11px] font-semibold uppercase tracking-[0.08em]">
+                              Main
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(idx)}
+                            aria-label={`Remove picture ${idx + 1}`}
+                            className="absolute right-1.5 top-1.5 w-7 h-7 bg-[#222222]/80 hover:bg-[#E8005F] text-white flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#52005C] font-medium">
+                      No product pictures attached yet. Upload a photo or add an image URL to save
+                      this product.
+                    </p>
+                  )}
+                </div>
+
+                {prodImageError && (
+                  <p
+                    role="alert"
+                    className="text-base font-medium text-[#991B1B] bg-[#FEF2F2] border border-[#FECACA] px-4 py-3"
+                  >
+                    {prodImageError}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-6 pt-1">
@@ -1099,13 +1437,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             <ul className="divide-y divide-[#EFE5EA] border-t border-b border-[#EFE5EA]">
               {inspectingOrder.items.map((item) => (
                 <li
-                  key={item.productId}
-                  className="py-3 flex items-center justify-between text-base"
+                  key={`${item.productId}-${item.variantLabel ?? 'default'}`}
+                  className="py-3 flex items-center justify-between gap-3 text-base"
                 >
                   <span className="text-[#222222]">
-                    {item.productName} x {item.quantity}
+                    {item.productName}
+                    {item.variantLabel ? ` (${item.variantLabel})` : ''} x {item.quantity}
                   </span>
-                  <span className="font-medium text-[#222222] tabular-nums">
+                  <span className="font-medium text-[#222222] tabular-nums shrink-0">
                     {formatNaira(item.unitPriceNaira * item.quantity)}
                   </span>
                 </li>
