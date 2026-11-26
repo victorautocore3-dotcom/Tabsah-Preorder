@@ -496,7 +496,7 @@ export const HomePage: React.FC = () => {
               checkout to Lekki dispatch. Pre-ordering finally feels calm.&rdquo;
             </blockquote>
             <p className="mt-6 text-[13px] tracking-[0.16em] uppercase text-[#666666]">
-              Amaka Okafor, Lekki Phase 1, Lagos
+              Chidinma E., Lekki Phase 1, Lagos
             </p>
 
             <div className="mt-12 pt-10 border-t border-[#EFE5EA] grid grid-cols-1 md:grid-cols-3 gap-8 text-left">

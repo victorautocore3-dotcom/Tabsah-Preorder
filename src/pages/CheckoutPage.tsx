@@ -14,7 +14,7 @@ export const CheckoutPage: React.FC = () => {
     cartSubtotal,
     currentCustomer,
     settings,
-    placeDemoOrder,
+    placeOrder,
     navigate,
   } = useStore();
 
@@ -59,7 +59,7 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
 
-    const result = placeDemoOrder({
+    const result = placeOrder({
       name,
       whatsApp,
       email,
@@ -574,8 +574,8 @@ export const CheckoutPage: React.FC = () => {
           <div className="flex items-start gap-2.5 text-base text-[#666666] leading-relaxed">
             <ShieldCheck className="w-4 h-4 text-[#52005C] shrink-0 mt-1" />
             <span>
-              Demo checkout mode is active while Paystack live wiring is pending. Clicking the
-              payment button records a demo order and payment receipt in your account immediately.
+              Your pre-order and payment receipt will be saved to your customer account immediately
+              after confirmation.
             </span>
           </div>
         </aside>

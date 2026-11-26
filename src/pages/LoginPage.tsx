@@ -52,18 +52,9 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleDemoCustomerLogin = () => {
-    const res = loginCustomer('amaka.okafor@example.com', 'tabsah2026');
-    if (res.ok) {
-      navigate({ page: 'account', tab: 'orders' });
-    }
-  };
-
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 sm:px-8 py-14 sm:py-20">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-        {/* Auth Column */}
-        <div className="lg:col-span-7 min-w-0 border border-[#F0D9E3] bg-white p-5 sm:p-10">
+    <div className="w-full max-w-xl mx-auto px-4 sm:px-8 py-14 sm:py-20">
+      <div className="min-w-0 border border-[#F0D9E3] bg-white p-5 sm:p-10">
           <div className="flex flex-wrap items-center gap-5 sm:gap-6 border-b border-[#EFE5EA] mb-8">
             <button
               type="button"
@@ -122,7 +113,7 @@ export const LoginPage: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="amaka.okafor@example.com"
+                  placeholder="you@example.com"
                   className="w-full h-11 px-3.5 border border-[#F0D9E3] text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
                 />
               </div>
@@ -280,38 +271,6 @@ export const LoginPage: React.FC = () => {
               </button>
             </form>
           )}
-        </div>
-
-        {/* Side Helper Panel */}
-        <div className="lg:col-span-5 min-w-0 space-y-6">
-          <div className="bg-[#FFF1F6] border border-[#F0D9E3] p-6 sm:p-7 space-y-4">
-            <p className="text-[13px] tracking-[0.18em] uppercase font-medium text-[#52005C]">
-              Demo Access
-            </p>
-            <h2 className="font-display text-2xl font-medium text-[#222222]">
-              Explore a sample customer account
-            </h2>
-            <p className="text-base text-[#4A4A4A] leading-relaxed">
-              Inspect a populated dashboard with active pre-orders, a balance ready to pay, and a
-              delivered Lagos order.
-            </p>
-            <div className="bg-white border border-[#F0D9E3] p-4 text-sm text-[#4A4A4A] space-y-1 break-all sm:break-normal">
-              <p>
-                <strong className="text-[#222222]">Email:</strong> amaka.okafor@example.com
-              </p>
-              <p>
-                <strong className="text-[#222222]">Password:</strong> tabsah2026
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleDemoCustomerLogin}
-              className="w-full py-3.5 px-4 bg-[#52005C] hover:bg-[#3D0045] text-white text-[13px] tracking-[0.14em] uppercase font-semibold transition-colors cursor-pointer"
-            >
-              Sign In as Amaka Okafor
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

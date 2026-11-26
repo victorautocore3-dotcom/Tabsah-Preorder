@@ -103,7 +103,7 @@ interface StoreContextValue {
   }) => void;
 
   // Checkout & order actions
-  placeDemoOrder: (payload: CheckoutPayload) => { ok: boolean; order?: Order; error?: string };
+  placeOrder: (payload: CheckoutPayload) => { ok: boolean; order?: Order; error?: string };
   payOrderBalance: (orderId: string) => { ok: boolean; error?: string };
 
   // Admin actions
@@ -170,9 +170,65 @@ function isAdminLocation(): boolean {
   return path === '/admin' || hash === 'admin';
 }
 
+const LEGACY_SEED_CUSTOMER_IDS = new Set(['cust-1', 'cust-2', 'cust-3']);
+const LEGACY_SEED_ORDER_IDS = new Set(['ord-1001', 'ord-1002', 'ord-1003', 'ord-1004', 'ord-1005']);
+const LEGACY_SEED_PAYMENT_IDS = new Set([
+  'pay-1',
+  'pay-2',
+  'pay-3',
+  'pay-4',
+  'pay-5',
+  'pay-6',
+  'pay-7',
+]);
+
+function isLegacySeedEmail(email: string): boolean {
+  return email.trim().toLowerCase().endsWith('@example.com');
+}
+
+function loadCleanedPersistedState() {
+  const rawCustomers = readStorage<CustomerAccount[]>(STORAGE_KEYS.customers, INITIAL_CUSTOMERS);
+  const removedCustomerIds = new Set<string>(LEGACY_SEED_CUSTOMER_IDS);
+  const cleanedCustomers = rawCustomers.filter((c) => {
+    const shouldRemove = LEGACY_SEED_CUSTOMER_IDS.has(c.id) || isLegacySeedEmail(c.email);
+    if (shouldRemove) removedCustomerIds.add(c.id);
+    return !shouldRemove;
+  });
+
+  const rawOrders = readStorage<Order[]>(STORAGE_KEYS.orders, INITIAL_ORDERS);
+  const removedOrderIds = new Set<string>(LEGACY_SEED_ORDER_IDS);
+  const cleanedOrders = rawOrders.filter((o) => {
+    const shouldRemove =
+      LEGACY_SEED_ORDER_IDS.has(o.id) ||
+      removedCustomerIds.has(o.customerId) ||
+      isLegacySeedEmail(o.customerEmail);
+    if (shouldRemove) removedOrderIds.add(o.id);
+    return !shouldRemove;
+  });
+
+  const rawPayments = readStorage<PaymentRecord[]>(STORAGE_KEYS.payments, INITIAL_PAYMENTS);
+  const cleanedPayments = rawPayments.filter(
+    (p) => !LEGACY_SEED_PAYMENT_IDS.has(p.id) && !removedOrderIds.has(p.orderId)
+  );
+
+  const rawCurrentCustomerId = readStorage<string | null>(STORAGE_KEYS.currentCustomerId, null);
+  const cleanedCurrentCustomerId =
+    rawCurrentCustomerId && cleanedCustomers.some((c) => c.id === rawCurrentCustomerId)
+      ? rawCurrentCustomerId
+      : null;
+
+  return {
+    customers: cleanedCustomers,
+    orders: cleanedOrders,
+    payments: cleanedPayments,
+    currentCustomerId: cleanedCurrentCustomerId,
+  };
+}
+
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [initialPersisted] = useState(loadCleanedPersistedState);
   const [route, setRoute] = useState<RouteView>(() =>
     isAdminLocation() ? { page: 'admin', tab: 'overview' } : { page: 'home' }
   );
@@ -180,17 +236,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [products, setProducts] = useState<Product[]>(() =>
     readStorage<Product[]>(STORAGE_KEYS.products, INITIAL_PRODUCTS)
   );
-  const [orders, setOrders] = useState<Order[]>(() =>
-    readStorage<Order[]>(STORAGE_KEYS.orders, INITIAL_ORDERS)
-  );
-  const [payments, setPayments] = useState<PaymentRecord[]>(() =>
-    readStorage<PaymentRecord[]>(STORAGE_KEYS.payments, INITIAL_PAYMENTS)
-  );
-  const [customers, setCustomers] = useState<CustomerAccount[]>(() =>
-    readStorage<CustomerAccount[]>(STORAGE_KEYS.customers, INITIAL_CUSTOMERS)
-  );
-  const [currentCustomerId, setCurrentCustomerId] = useState<string | null>(() =>
-    readStorage<string | null>(STORAGE_KEYS.currentCustomerId, null)
+  const [orders, setOrders] = useState<Order[]>(() => initialPersisted.orders);
+  const [payments, setPayments] = useState<PaymentRecord[]>(() => initialPersisted.payments);
+  const [customers, setCustomers] = useState<CustomerAccount[]>(() => initialPersisted.customers);
+  const [currentCustomerId, setCurrentCustomerId] = useState<string | null>(
+    () => initialPersisted.currentCustomerId
   );
   const [cart, setCart] = useState<CartItem[]>(() =>
     readStorage<CartItem[]>(STORAGE_KEYS.cart, [])
@@ -512,7 +562,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast('Your account details have been saved.');
   };
 
-  const placeDemoOrder = (payload: CheckoutPayload) => {
+  const placeOrder = (payload: CheckoutPayload) => {
     if (cartDetailedItems.length === 0) {
       return { ok: false, error: 'Your cart is empty.' };
     }
@@ -533,13 +583,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           activeCustomerId = existing.id;
           setCurrentCustomerId(existing.id);
         } else {
+          const chosenPassword = (payload.password ?? '').trim();
+          if (chosenPassword.length < 6) {
+            return {
+              ok: false,
+              error: 'Please choose a password of at least 6 characters to create your account.',
+            };
+          }
           const created: CustomerAccount = {
             id: `cust-${Date.now()}`,
             name: payload.name.trim(),
             email: cleanEmail,
             whatsApp: payload.whatsApp.trim(),
             deliveryAddress: payload.deliveryAddress.trim(),
-            password: payload.password || 'tabsah2026',
+            password: chosenPassword,
             createdAt: getTodayIso(),
           };
           setCustomers((prev) => [...prev, created]);
@@ -608,7 +665,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       type: appliedUpfrontPct === 100 ? 'Full Payment' : 'Deposit',
       amountNaira: deposit,
       date: today,
-      method: 'Paystack Demo',
+      method: 'Paystack',
       status: 'Confirmed',
     };
 
@@ -654,7 +711,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       type: 'Balance',
       amountNaira: amountPaid,
       date: today,
-      method: 'Paystack Demo',
+      method: 'Paystack',
       status: 'Confirmed',
     };
 
@@ -791,7 +848,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setupAdminAccount,
     logoutCustomer,
     updateCustomerDetails,
-    placeDemoOrder,
+    placeOrder,
     payOrderBalance,
     addProduct,
     updateProduct,
