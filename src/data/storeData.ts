@@ -132,7 +132,7 @@ export interface PaymentRecord {
   amountNaira: number;
   date: string; // YYYY-MM-DD
   method: string;
-  status: 'Confirmed';
+  status: string;
 }
 
 export interface CustomerAccount {

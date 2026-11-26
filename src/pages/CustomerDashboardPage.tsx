@@ -7,6 +7,7 @@ import {
   LogOut,
   MessageCircle,
   Package,
+  Search,
   User,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
@@ -29,16 +30,25 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
 }) => {
   const {
     currentCustomer,
+    authLoading,
     orders,
+    ordersLoading,
     navigate,
     logoutCustomer,
     payOrderBalance,
+    lookupOrderByNumber,
     updateCustomerDetails,
     getWhatsAppUrl,
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'orders' | 'details'>(initialTab);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(initialOrderId ?? null);
+  const [lookupInput, setLookupInput] = useState('');
+  const [lookupError, setLookupError] = useState('');
+  const [lookupResult, setLookupResult] = useState<Order | null>(null);
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+  const [savingDetails, setSavingDetails] = useState(false);
 
   const [name, setName] = useState(currentCustomer?.name ?? '');
   const [whatsApp, setWhatsApp] = useState(currentCustomer?.whatsApp ?? '');
@@ -61,6 +71,14 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
       setDeliveryAddress(currentCustomer.deliveryAddress);
     }
   }, [currentCustomer]);
+
+  if (authLoading) {
+    return (
+      <div className="max-w-xl mx-auto px-5 py-24 text-center text-base text-[#555555]">
+        Loading your account...
+      </div>
+    );
+  }
 
   if (!currentCustomer) {
     return (
@@ -91,11 +109,44 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
       o.customerEmail.toLowerCase() === currentCustomer.email.toLowerCase()
   );
 
-  const selectedOrder: Order | undefined = myOrders.find((o) => o.id === selectedOrderId);
+  const selectedOrder: Order | undefined =
+    myOrders.find((o) => o.id === selectedOrderId) ??
+    (lookupResult && lookupResult.id === selectedOrderId ? lookupResult : undefined);
 
-  const handleSaveDetails = (e: React.FormEvent) => {
+  const handleLookupOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateCustomerDetails({ name, whatsApp, email, deliveryAddress });
+    setLookupError('');
+    setLookupBusy(true);
+    try {
+      const res = await lookupOrderByNumber(lookupInput);
+      if (!res.ok || !res.order) {
+        setLookupError(res.error ?? 'Order not found.');
+        return;
+      }
+      setLookupResult(res.order);
+      setSelectedOrderId(res.order.id);
+    } finally {
+      setLookupBusy(false);
+    }
+  };
+
+  const handlePayBalance = async (orderId: string) => {
+    setPayingOrderId(orderId);
+    try {
+      await payOrderBalance(orderId);
+    } finally {
+      setPayingOrderId(null);
+    }
+  };
+
+  const handleSaveDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingDetails(true);
+    try {
+      await updateCustomerDetails({ name, whatsApp, email, deliveryAddress });
+    } finally {
+      setSavingDetails(false);
+    }
   };
 
   return (
@@ -197,12 +248,15 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                     {selectedOrder.balanceRemainingNaira > 0 && (
                       <button
                         type="button"
-                        onClick={() => payOrderBalance(selectedOrder.id)}
-                        className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 max-w-full bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.14em] uppercase transition-colors text-center sm:whitespace-nowrap cursor-pointer"
+                        disabled={payingOrderId === selectedOrder.id}
+                        onClick={() => void handlePayBalance(selectedOrder.id)}
+                        className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 max-w-full bg-[#E8005F] hover:bg-[#C4004F] disabled:opacity-60 text-white text-[13px] font-medium tracking-[0.14em] uppercase transition-colors text-center sm:whitespace-nowrap cursor-pointer"
                       >
                         <CreditCard className="w-4 h-4 text-white shrink-0" />
                         <span>
-                          Pay Balance ({formatNaira(selectedOrder.balanceRemainingNaira)})
+                          {payingOrderId === selectedOrder.id
+                            ? 'Recording Payment...'
+                            : `Pay Balance (${formatNaira(selectedOrder.balanceRemainingNaira)})`}
                         </span>
                       </button>
                     )}
@@ -390,25 +444,68 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                 </div>
               </div>
             </div>
-          ) : myOrders.length === 0 ? (
-            <div className="bg-[#FAF7F9] border border-[#F0D9E3] p-12 text-center">
-              <h2 className="font-display text-2xl font-medium text-[#222222]">
-                You have not placed a pre-order yet
-              </h2>
-              <p className="mt-2.5 text-base text-[#555555] max-w-md mx-auto leading-relaxed">
-                Once you reserve an item with a deposit, it will appear right here with live arrival
-                tracking.
-              </p>
-              <button
-                type="button"
-                onClick={() => navigate({ page: 'shop' })}
-                className="mt-7 px-8 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.16em] uppercase transition-colors cursor-pointer"
-              >
-                Explore Pre-Orders
-              </button>
-            </div>
           ) : (
-            <div className="border-t border-[#F0D9E3] divide-y divide-[#F0D9E3]">
+            <div className="space-y-8">
+              {/* Order Lookup Bar */}
+              <form
+                onSubmit={handleLookupOrder}
+                className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center bg-[#FAF7F9] border border-[#F0D9E3] p-4"
+              >
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-[#52005C] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={lookupInput}
+                    onChange={(e) => {
+                      setLookupInput(e.target.value);
+                      setLookupError('');
+                    }}
+                    placeholder="Look up an order by number (e.g. TB-2026-1044)"
+                    aria-label="Look up an order by order number"
+                    className="w-full h-11 pl-10 pr-4 bg-white border border-[#F0D9E3] focus:border-[#E8005F] focus:outline-none text-base text-[#222222]"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={lookupBusy}
+                  className="px-6 h-11 bg-[#52005C] hover:bg-[#3D0045] disabled:opacity-60 text-white text-[13px] font-medium tracking-[0.14em] uppercase whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  {lookupBusy ? 'Searching...' : 'Find Order'}
+                </button>
+              </form>
+
+              {lookupError && (
+                <p
+                  role="alert"
+                  className="text-base font-medium text-[#991B1B] bg-[#FEF2F2] border border-[#FECACA] px-4 py-3"
+                >
+                  {lookupError}
+                </p>
+              )}
+
+              {ordersLoading ? (
+                <div className="bg-[#FAF7F9] border border-[#F0D9E3] p-12 text-center text-base text-[#555555]">
+                  Loading your orders...
+                </div>
+              ) : myOrders.length === 0 ? (
+                <div className="bg-[#FAF7F9] border border-[#F0D9E3] p-12 text-center">
+                  <h2 className="font-display text-2xl font-medium text-[#222222]">
+                    You have not placed a pre-order yet
+                  </h2>
+                  <p className="mt-2.5 text-base text-[#555555] max-w-md mx-auto leading-relaxed">
+                    Once you reserve an item with a deposit, it will appear right here with live
+                    arrival tracking.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate({ page: 'shop' })}
+                    className="mt-7 px-8 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.16em] uppercase transition-colors cursor-pointer"
+                  >
+                    Explore Pre-Orders
+                  </button>
+                </div>
+              ) : (
+                <div className="border-t border-[#F0D9E3] divide-y divide-[#F0D9E3]">
               {myOrders.map((order) => (
                 <div
                   key={order.id}
@@ -476,10 +573,11 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                       {order.balanceRemainingNaira > 0 && (
                         <button
                           type="button"
-                          onClick={() => payOrderBalance(order.id)}
-                          className="px-4 py-2.5 bg-[#52005C] hover:bg-[#3D0045] text-white text-[13px] font-medium tracking-[0.12em] uppercase whitespace-nowrap transition-colors cursor-pointer"
+                          disabled={payingOrderId === order.id}
+                          onClick={() => void handlePayBalance(order.id)}
+                          className="px-4 py-2.5 bg-[#52005C] hover:bg-[#3D0045] disabled:opacity-60 text-white text-[13px] font-medium tracking-[0.12em] uppercase whitespace-nowrap transition-colors cursor-pointer"
                         >
-                          Pay Balance
+                          {payingOrderId === order.id ? 'Recording...' : 'Pay Balance'}
                         </button>
                       )}
                       <button
@@ -493,6 +591,8 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                   </div>
                 </div>
               ))}
+                </div>
+              )}
             </div>
           )}
         </>
@@ -558,10 +658,9 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                 <input
                   id="det-email"
                   type="email"
-                  required
+                  readOnly
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-11 px-3.5 border border-[#F0D9E3] focus:border-[#E8005F] focus:outline-none text-base"
+                  className="w-full h-11 px-3.5 border border-[#F0D9E3] bg-[#FAF7F9] text-[#666666] text-base focus:outline-none"
                 />
               </div>
             </div>
@@ -585,9 +684,10 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
 
             <button
               type="submit"
-              className="px-8 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.16em] uppercase transition-colors cursor-pointer"
+              disabled={savingDetails}
+              className="px-8 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] disabled:opacity-60 text-white text-[13px] font-medium tracking-[0.16em] uppercase transition-colors cursor-pointer"
             >
-              Save Changes
+              {savingDetails ? 'Saving...' : 'Save Changes'}
             </button>
           </form>
         </div>

@@ -15,18 +15,13 @@ interface ProductDetailPageProps {
 }
 
 export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlug }) => {
-  const { products, categories, navigate, addToCart, settings, getWhatsAppUrl } = useStore();
+  const { products, productsLoading, categories, navigate, addToCart, settings, getWhatsAppUrl } =
+    useStore();
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
 
-  const product = products.find((p) => p.slug === productSlug) ?? products[0];
-  const category = categories.find((c) => c.slug === product.categorySlug);
-  const relatedProducts = products
-    .filter((p) => p.id !== product.id && (p.categorySlug === product.categorySlug || p.featured))
-    .slice(0, 4);
-
-  const galleryImages = product.gallery.length > 0 ? product.gallery : [product.image];
-  const lowestVariant = getLowestVariant(product);
+  const product = products.find((p) => p.slug === productSlug) ?? products[0] ?? null;
+  const lowestVariant = product ? getLowestVariant(product) : undefined;
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariantLabel, setSelectedVariantLabel] = useState<string>(
@@ -34,12 +29,51 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
   );
 
   useEffect(() => {
+    if (!product) return;
     setActiveImageIndex(0);
     setQuantity(1);
     setJustAdded(false);
     const nextLowest = getLowestVariant(product);
     setSelectedVariantLabel(nextLowest?.label ?? '');
-  }, [product.id]);
+  }, [product?.id]);
+
+  if (productsLoading) {
+    return (
+      <div className="max-w-2xl mx-auto px-5 py-24 text-center text-base text-[#555555]">
+        Loading product details...
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="max-w-2xl mx-auto px-5 py-24 text-center">
+        <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-2">
+          Catalogue
+        </p>
+        <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222]">
+          This pre-order item is not available right now
+        </h1>
+        <p className="mt-3 text-base text-[#555555]">
+          Return to the catalogue to browse active pre-order batches.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate({ page: 'shop' })}
+          className="mt-7 px-7 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors cursor-pointer"
+        >
+          Back to Catalogue
+        </button>
+      </div>
+    );
+  }
+
+  const category = categories.find((c) => c.slug === product.categorySlug);
+  const relatedProducts = products
+    .filter((p) => p.id !== product.id && (p.categorySlug === product.categorySlug || p.featured))
+    .slice(0, 4);
+
+  const galleryImages = product.gallery.length > 0 ? product.gallery : [product.image];
 
   const selectedVariant =
     product.variants?.find((v) => v.label === selectedVariantLabel) ?? lowestVariant;

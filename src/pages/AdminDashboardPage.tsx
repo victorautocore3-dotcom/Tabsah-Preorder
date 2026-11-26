@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   CreditCard,
+  Database,
   Edit3,
   ImagePlus,
   LayoutDashboard,
@@ -9,6 +10,7 @@ import {
   LogOut,
   Package,
   Plus,
+  RefreshCw,
   Search,
   Settings,
   ShoppingCart,
@@ -16,15 +18,15 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { useStore } from '../context/StoreContext';
+import { CatalogueImportResult, useStore } from '../context/StoreContext';
 import {
   formatArrivalDate,
   formatNaira,
   ORDER_STATUS_STEPS,
   Order,
   OrderStatus,
-  Product,
 } from '../data/storeData';
+import { DbProductWithActive } from '../services/supabaseDb';
 import { DeliveryZoneFee } from '../config/storeConfig';
 import { ProductImage } from '../components/ProductImage';
 
@@ -48,33 +50,19 @@ function isSafeImageSource(value: string): boolean {
 }
 
 export const AdminLoginGate: React.FC = () => {
-  const { hasAdminAccount, loginAdmin, setupAdminAccount, navigate } = useStore();
+  const { loginAdmin, navigate } = useStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSubmitting(true);
 
-    if (!hasAdminAccount) {
-      if (password.trim().length < 6) {
-        setError('Please choose a password with at least 6 characters.');
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError('The passwords do not match. Please enter the same password twice.');
-        return;
-      }
-      const res = setupAdminAccount(email, password);
-      if (!res.ok) {
-        setError(res.error ?? 'Could not complete admin setup.');
-      }
-      return;
-    }
-
-    const res = loginAdmin(email, password);
+    const res = await loginAdmin(email, password);
+    setSubmitting(false);
     if (!res.ok) {
       setError(res.error ?? 'Could not sign in.');
     }
@@ -89,12 +77,11 @@ export const AdminLoginGate: React.FC = () => {
             <span>Authorized Access Only</span>
           </div>
           <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222]">
-            {hasAdminAccount ? 'Store Admin Sign In' : 'Set Store Admin Password'}
+            Store Admin Sign In
           </h1>
           <p className="text-base text-[#555555] leading-relaxed">
-            {hasAdminAccount
-              ? 'Enter the authorized store admin email and password to manage products, orders, payments, and store settings.'
-              : 'Enter the authorized store admin email and choose a password (at least 6 characters) for your first sign in on this device.'}
+            Sign in with your authorized store admin account to manage products, orders, payments,
+            and store settings.
           </p>
         </div>
 
@@ -123,42 +110,19 @@ export const AdminLoginGate: React.FC = () => {
               htmlFor="admin-password"
               className="block text-[13px] tracking-[0.11em] uppercase font-medium text-[#4A4A4A] mb-2"
             >
-              {hasAdminAccount ? 'Password' : 'Create Password'}
+              Password
             </label>
             <input
               id="admin-password"
               type="password"
               required
-              minLength={hasAdminAccount ? undefined : 6}
-              autoComplete={hasAdminAccount ? 'current-password' : 'new-password'}
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={hasAdminAccount ? 'Enter your password' : 'At least 6 characters'}
+              placeholder="Enter your password"
               className="w-full h-11 px-3.5 border border-[#F0D9E3] text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
             />
           </div>
-
-          {!hasAdminAccount && (
-            <div>
-              <label
-                htmlFor="admin-confirm-password"
-                className="block text-[13px] tracking-[0.11em] uppercase font-medium text-[#4A4A4A] mb-2"
-              >
-                Confirm Password
-              </label>
-              <input
-                id="admin-confirm-password"
-                type="password"
-                required
-                minLength={6}
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter your password"
-                className="w-full h-11 px-3.5 border border-[#F0D9E3] text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
-              />
-            </div>
-          )}
 
           {error && (
             <p
@@ -171,9 +135,10 @@ export const AdminLoginGate: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full h-12 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            disabled={submitting}
+            className="w-full h-12 bg-[#E8005F] hover:bg-[#C4004F] disabled:opacity-60 text-white text-[13px] tracking-[0.16em] uppercase font-semibold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
-            <span>{hasAdminAccount ? 'Sign In to Admin' : 'Save Password & Sign In'}</span>
+            <span>{submitting ? 'Signing In...' : 'Sign In to Admin'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
@@ -197,15 +162,20 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 }) => {
   const {
     categories,
-    products,
+    adminProducts,
+    productsLoading,
     orders,
     payments,
     settings,
     addProduct,
     updateProduct,
+    setProductActive,
     toggleProductPreOrder,
     updateOrderStatus,
     updateSettings,
+    importBuiltInCatalogue,
+    refreshCatalogue,
+    refreshOrdersAndPayments,
     logoutCustomer,
     navigate,
   } = useStore();
@@ -215,6 +185,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [orderSearch, setOrderSearch] = useState('');
   const [inspectingOrder, setInspectingOrder] = useState<Order | null>(null);
+
+  // One-Time Catalogue Import State
+  const [importingCatalogue, setImportingCatalogue] = useState(false);
+  const [importProgress, setImportProgress] = useState('');
+  const [importResult, setImportResult] = useState<CatalogueImportResult | null>(null);
 
   // Add / Edit Product Modal State
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -233,6 +208,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const [prodImageError, setProdImageError] = useState('');
   const [prodOpen, setProdOpen] = useState(true);
   const [prodFeatured, setProdFeatured] = useState(false);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Settings Form State
@@ -246,10 +223,16 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     setActiveTab(initialTab);
   }, [initialTab]);
 
+  React.useEffect(() => {
+    setDefaultUpfrontPct(settings.defaultUpfrontPercentage);
+    setWhatsAppNumber(settings.storeWhatsAppNumber);
+    setFeeRows(settings.deliveryFees);
+  }, [settings]);
+
   // KPI Metrics
   const todayIso = new Date().toISOString().slice(0, 10);
   const todaysOrders = useMemo(
-    () => orders.filter((o) => o.createdAt === todayIso || o.createdAt === '2026-11-23'),
+    () => orders.filter((o) => o.createdAt === todayIso),
     [orders, todayIso]
   );
   const totalDepositsReceived = useMemo(
@@ -274,14 +257,24 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
   const filteredProducts = useMemo(() => {
     const q = productSearch.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
+    if (!q) return adminProducts;
+    return adminProducts.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.categorySlug.toLowerCase().includes(q) ||
         p.batchCode.toLowerCase().includes(q)
     );
-  }, [products, productSearch]);
+  }, [adminProducts, productSearch]);
+
+  const handleImportCatalogue = async () => {
+    if (importingCatalogue) return;
+    setImportingCatalogue(true);
+    setImportResult(null);
+    setImportProgress('Starting catalogue import...');
+    const result = await importBuiltInCatalogue((msg) => setImportProgress(msg));
+    setImportResult(result);
+    setImportingCatalogue(false);
+  };
 
   const filteredOrders = useMemo(() => {
     const q = orderSearch.trim().toLowerCase();
@@ -315,7 +308,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     setProductModalOpen(true);
   };
 
-  const openEditProductModal = (product: Product) => {
+  const openEditProductModal = (product: DbProductWithActive) => {
     setEditingProductId(product.id);
     setProdName(product.name);
     setProdCategory(product.categorySlug);
@@ -379,7 +372,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     setProdImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanedImages = prodImages.map((img) => img.trim()).filter(isSafeImageSource);
     if (cleanedImages.length === 0) {
@@ -387,42 +380,48 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
       return;
     }
 
+    setProdImageError('');
+    setSavingProduct(true);
     const numericPrice = Math.max(1000, Number(prodPrice) || 1000);
 
-    if (editingProductId) {
-      updateProduct(editingProductId, {
-        name: prodName.trim(),
-        categorySlug: prodCategory,
-        priceNaira: numericPrice,
-        expectedArrivalDate: prodArrival,
-        batchCode: prodBatch.trim() || 'TAB-114',
-        shortSummary: prodSummary.trim(),
-        description: prodDesc.trim(),
-        image: cleanedImages[0],
-        gallery: cleanedImages,
-        isPreOrderOpen: prodOpen,
-        featured: prodFeatured,
-      });
-    } else {
-      addProduct({
-        name: prodName.trim(),
-        categorySlug: prodCategory,
-        priceNaira: numericPrice,
-        expectedArrivalDate: prodArrival,
-        batchCode: prodBatch.trim() || 'TAB-114',
-        shortSummary: prodSummary.trim() || 'Curated pre-order batch item.',
-        description:
-          prodDesc.trim() ||
-          'Sourced directly for Pre Order With Tabsah customers with quality inspection in Lagos.',
-        image: cleanedImages[0],
-        gallery: cleanedImages,
-        isPreOrderOpen: prodOpen,
-        featured: prodFeatured,
-        specifications: [
-          { label: 'Batch Code', value: prodBatch.trim() || 'TAB-114' },
-          { label: 'Expected Arrival', value: formatArrivalDate(prodArrival) },
-        ],
-      });
+    const res = editingProductId
+      ? await updateProduct(editingProductId, {
+          name: prodName.trim(),
+          categorySlug: prodCategory,
+          priceNaira: numericPrice,
+          expectedArrivalDate: prodArrival,
+          batchCode: prodBatch.trim() || 'TAB-114',
+          shortSummary: prodSummary.trim(),
+          description: prodDesc.trim(),
+          image: cleanedImages[0],
+          gallery: cleanedImages,
+          isPreOrderOpen: prodOpen,
+          featured: prodFeatured,
+        })
+      : await addProduct({
+          name: prodName.trim(),
+          categorySlug: prodCategory,
+          priceNaira: numericPrice,
+          expectedArrivalDate: prodArrival,
+          batchCode: prodBatch.trim() || 'TAB-114',
+          shortSummary: prodSummary.trim() || 'Curated pre-order batch item.',
+          description:
+            prodDesc.trim() ||
+            'Sourced directly for Pre Order With Tabsah customers with quality inspection in Lagos.',
+          image: cleanedImages[0],
+          gallery: cleanedImages,
+          isPreOrderOpen: prodOpen,
+          featured: prodFeatured,
+          specifications: [
+            { label: 'Batch Code', value: prodBatch.trim() || 'TAB-114' },
+            { label: 'Expected Arrival', value: formatArrivalDate(prodArrival) },
+          ],
+        });
+
+    setSavingProduct(false);
+    if (!res.ok) {
+      setProdImageError(res.error ?? 'Could not save this product. Please try again.');
+      return;
     }
 
     setProductModalOpen(false);
@@ -433,13 +432,15 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     setFeeRows((prev) => prev.map((z) => (z.id === zoneId ? { ...z, feeNaira: num } : z)));
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSettings({
+    setSavingSettings(true);
+    await updateSettings({
       defaultUpfrontPercentage: defaultUpfrontPct,
       storeWhatsAppNumber: whatsAppNumber,
       deliveryFees: feeRows,
     });
+    setSavingSettings(false);
   };
 
   const navItems: { id: AdminTab; label: string; icon: React.ElementType }[] = [
@@ -489,6 +490,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
           <div className="mt-5 lg:mt-8 pt-4 lg:pt-5 border-t border-[#EFE5EA] flex flex-wrap lg:flex-col items-center lg:items-start gap-4">
             <button
               type="button"
+              onClick={() => {
+                void refreshCatalogue();
+                void refreshOrdersAndPayments();
+              }}
+              className="inline-flex items-center gap-2 text-[13px] font-medium tracking-[0.13em] uppercase text-[#52005C] hover:text-[#E8005F] cursor-pointer"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Refresh Data</span>
+            </button>
+            <button
+              type="button"
               onClick={() => navigate({ page: 'home' })}
               className="text-[13px] font-medium tracking-[0.13em] uppercase text-[#E8005F] hover:text-[#52005C] cursor-pointer"
             >
@@ -496,7 +508,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             </button>
             <button
               type="button"
-              onClick={logoutCustomer}
+              onClick={() => void logoutCustomer()}
               className="inline-flex items-center gap-2 text-[13px] font-medium tracking-[0.13em] uppercase text-[#52005C] hover:text-[#E8005F] cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
@@ -536,6 +548,74 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 </button>
               </div>
 
+              {/* One-Time Catalogue Import Banner when DB products table is empty */}
+              {(!productsLoading && adminProducts.length === 0) || importResult ? (
+                <div className="bg-[#FFF1F6] border border-[#F0D9E3] p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="inline-flex items-center gap-2 text-[13px] font-medium tracking-[0.16em] uppercase text-[#52005C]">
+                        <Database className="w-4 h-4 text-[#E8005F]" />
+                        <span>Catalogue Setup</span>
+                      </p>
+                      <h3 className="font-display text-2xl font-medium text-[#222222]">
+                        {adminProducts.length === 0
+                          ? 'Your database catalogue is currently empty'
+                          : 'Catalogue Import Summary'}
+                      </h3>
+                      <p className="text-base text-[#4A4A4A] leading-relaxed">
+                        {adminProducts.length === 0
+                          ? 'Upload the 13 built-in products, their photos, and variant prices into Supabase Storage and the products table in one click. Safe to run more than once.'
+                          : 'Products have been loaded into the database. Already-imported items are automatically skipped if run again.'}
+                      </p>
+                    </div>
+                    {adminProducts.length === 0 && (
+                      <button
+                        type="button"
+                        disabled={importingCatalogue}
+                        onClick={() => void handleImportCatalogue()}
+                        className="inline-flex items-center gap-2 px-5 py-3 bg-[#52005C] hover:bg-[#3D0045] disabled:opacity-60 text-white text-[13px] font-semibold tracking-[0.14em] uppercase whitespace-nowrap self-start sm:self-center transition-colors cursor-pointer"
+                      >
+                        <Upload className="w-4 h-4" />
+                        <span>
+                          {importingCatalogue ? 'Importing...' : 'Import current catalogue'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+
+                  {importProgress && (
+                    <p className="text-base font-medium text-[#52005C] bg-white border border-[#F0D9E3] px-4 py-3">
+                      {importProgress}
+                    </p>
+                  )}
+
+                  {importResult && (
+                    <div className="space-y-2">
+                      <p
+                        className={`text-base font-medium px-4 py-3 border ${
+                          importResult.ok
+                            ? 'bg-white border-[#F0D9E3] text-[#222222]'
+                            : 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]'
+                        }`}
+                      >
+                        Imported {importResult.importedCount} products, skipped{' '}
+                        {importResult.skippedCount}.
+                        {importResult.errors.length > 0
+                          ? ` ${importResult.errors.length} error(s) occurred.`
+                          : ''}
+                      </p>
+                      {importResult.errors.length > 0 && (
+                        <ul className="bg-[#FEF2F2] border border-[#FECACA] p-4 space-y-1 text-sm text-[#991B1B]">
+                          {importResult.errors.map((errMsg, idx) => (
+                            <li key={idx}>{errMsg}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
               {/* 4 KPI Cells */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 border-t border-l border-[#F0D9E3]">
                 <div className="bg-white border-r border-b border-[#F0D9E3] p-6">
@@ -558,7 +638,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   <p className="mt-3 font-display text-3xl font-medium text-[#E8005F] tabular-nums">
                     {formatNaira(totalDepositsReceived)}
                   </p>
-                  <p className="mt-2 text-sm text-[#666666]">Confirmed deposits and full payments</p>
+                  <p className="mt-2 text-sm text-[#666666]">Recorded deposits and full payments</p>
                 </div>
 
                 <div className="bg-white border-r border-b border-[#F0D9E3] p-6">
@@ -610,38 +690,46 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#EFE5EA]">
-                      {orders.slice(0, 6).map((order) => (
-                        <tr key={order.id} className="hover:bg-[#FFF1F6]/50">
-                          <td className="px-6 py-4 font-medium text-[#222222] tabular-nums whitespace-nowrap">
-                            {order.orderNumber}
-                          </td>
-                          <td className="px-6 py-4 text-[#4A4A4A] whitespace-nowrap">
-                            {order.customerName}
-                          </td>
-                          <td className="px-6 py-4 text-[#666666] whitespace-nowrap">
-                            {formatArrivalDate(order.expectedArrivalDate)}
-                          </td>
-                          <td className="px-6 py-4 text-right whitespace-nowrap">
-                            <p className="text-base font-medium text-[#E8005F] tabular-nums">
-                              {formatNaira(order.depositPaidNaira)}
-                            </p>
-                            <p className="text-sm text-[#666666]">
-                              {order.depositPercentageApplied}% upfront
-                            </p>
-                          </td>
-                          <td className="px-6 py-4 text-right whitespace-nowrap">
-                            <p className="text-base font-medium text-[#52005C] tabular-nums">
-                              {formatNaira(order.balanceRemainingNaira)}
-                            </p>
-                            {order.balanceRemainingNaira === 0 && (
-                              <p className="text-sm text-[#52005C]">Paid in full</p>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-[#222222] whitespace-nowrap">
-                            {order.status}
+                      {orders.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-10 text-center text-base text-[#555555]">
+                            No customer pre-orders have been recorded yet.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        orders.slice(0, 6).map((order) => (
+                          <tr key={order.id} className="hover:bg-[#FFF1F6]/50">
+                            <td className="px-6 py-4 font-medium text-[#222222] tabular-nums whitespace-nowrap">
+                              {order.orderNumber}
+                            </td>
+                            <td className="px-6 py-4 text-[#4A4A4A] whitespace-nowrap">
+                              {order.customerName}
+                            </td>
+                            <td className="px-6 py-4 text-[#666666] whitespace-nowrap">
+                              {formatArrivalDate(order.expectedArrivalDate)}
+                            </td>
+                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                              <p className="text-base font-medium text-[#E8005F] tabular-nums">
+                                {formatNaira(order.depositPaidNaira)}
+                              </p>
+                              <p className="text-sm text-[#666666]">
+                                {order.depositPercentageApplied}% upfront
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                              <p className="text-base font-medium text-[#52005C] tabular-nums">
+                                {formatNaira(order.balanceRemainingNaira)}
+                              </p>
+                              {order.balanceRemainingNaira === 0 && (
+                                <p className="text-sm text-[#52005C]">Paid in full</p>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-[#222222] whitespace-nowrap">
+                              {order.status}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -658,22 +746,67 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     Catalogue
                   </p>
                   <h2 className="font-display text-3xl font-medium text-[#222222]">
-                    Products Manager ({products.length})
+                    Products Manager ({adminProducts.length})
                   </h2>
                   <p className="mt-1.5 text-base text-[#555555]">
-                    Add products, update naira pricing or expected arrival dates, and open or close
-                    pre-order availability.
+                    Add products, upload photos, update naira pricing or expected arrival dates,
+                    and open, close, or deactivate items.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={openAddProductModal}
-                  className="inline-flex items-center gap-2 px-5 py-3 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.14em] uppercase whitespace-nowrap self-start sm:self-auto transition-colors cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Product</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+                  {adminProducts.length === 0 && (
+                    <button
+                      type="button"
+                      disabled={importingCatalogue}
+                      onClick={() => void handleImportCatalogue()}
+                      className="inline-flex items-center gap-2 px-5 py-3 bg-[#52005C] hover:bg-[#3D0045] disabled:opacity-60 text-white text-[13px] font-medium tracking-[0.14em] uppercase whitespace-nowrap transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>
+                        {importingCatalogue ? 'Importing...' : 'Import current catalogue'}
+                      </span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={openAddProductModal}
+                    className="inline-flex items-center gap-2 px-5 py-3 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.14em] uppercase whitespace-nowrap transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Product</span>
+                  </button>
+                </div>
               </div>
+
+              {(importProgress || importResult) && (
+                <div className="bg-[#FFF1F6] border border-[#F0D9E3] p-5 space-y-2.5">
+                  {importProgress && (
+                    <p className="text-base font-medium text-[#52005C]">{importProgress}</p>
+                  )}
+                  {importResult && (
+                    <>
+                      <p
+                        className={`text-base font-medium ${
+                          importResult.ok ? 'text-[#222222]' : 'text-[#991B1B]'
+                        }`}
+                      >
+                        Imported {importResult.importedCount} products, skipped{' '}
+                        {importResult.skippedCount}.
+                        {importResult.errors.length > 0
+                          ? ` ${importResult.errors.length} error(s) occurred.`
+                          : ''}
+                      </p>
+                      {importResult.errors.length > 0 && (
+                        <ul className="bg-[#FEF2F2] border border-[#FECACA] p-3.5 space-y-1 text-sm text-[#991B1B]">
+                          {importResult.errors.map((errMsg, idx) => (
+                            <li key={idx}>{errMsg}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
 
               <div className="relative max-w-sm">
                 <Search className="w-4 h-4 text-[#52005C] absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -700,68 +833,99 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#EFE5EA]">
-                      {filteredProducts.map((product) => {
-                        const cat = categories.find((c) => c.slug === product.categorySlug);
-                        return (
-                          <tr key={product.id} className="hover:bg-[#FFF1F6]/50">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3.5 min-w-[220px]">
-                                <div className="w-12 h-12 overflow-hidden bg-[#F8F5F7] shrink-0">
-                                  <ProductImage
-                                    src={product.image}
-                                    alt={product.name}
-                                    className="w-full h-full object-cover"
-                                  />
+                      {filteredProducts.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-12 text-center text-base text-[#555555]">
+                            {adminProducts.length === 0
+                              ? 'No products are in the database yet. Click "Import current catalogue" above or add a new product.'
+                              : 'No products match your search.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredProducts.map((product) => {
+                          const cat = categories.find((c) => c.slug === product.categorySlug);
+                          return (
+                            <tr
+                              key={product.id}
+                              className={`hover:bg-[#FFF1F6]/50 ${
+                                product.active ? '' : 'opacity-65 bg-[#FAF7F9]'
+                              }`}
+                            >
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3.5 min-w-[220px]">
+                                  <div className="w-12 h-12 overflow-hidden bg-[#F8F5F7] shrink-0">
+                                    <ProductImage
+                                      src={product.image}
+                                      alt={product.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <p className="text-base font-medium text-[#222222] leading-snug">
+                                        {product.name}
+                                      </p>
+                                      {!product.active && (
+                                        <span className="px-2 py-0.5 bg-[#EFE5EA] text-[#52005C] text-[12px] font-semibold uppercase tracking-[0.08em]">
+                                          Inactive
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-sm text-[#666666] mt-0.5">
+                                      {product.batchCode}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="text-base font-medium text-[#222222] leading-snug">
-                                    {product.name}
-                                  </p>
-                                  <p className="text-sm text-[#666666] mt-0.5">
-                                    {product.batchCode}
-                                  </p>
+                              </td>
+                              <td className="px-6 py-4 text-sm text-[#555555] whitespace-nowrap">
+                                {cat ? cat.name : product.categorySlug}
+                              </td>
+                              <td className="px-6 py-4 text-right text-base font-medium text-[#222222] tabular-nums whitespace-nowrap">
+                                {product.variants && product.variants.length > 0
+                                  ? `From ${formatNaira(product.priceNaira)}`
+                                  : formatNaira(product.priceNaira)}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-[#4A4A4A] whitespace-nowrap">
+                                {formatArrivalDate(product.expectedArrivalDate)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => void toggleProductPreOrder(product.id)}
+                                  className={`px-3 py-1.5 text-[13px] font-medium tracking-[0.06em] uppercase border transition-colors cursor-pointer ${
+                                    product.isPreOrderOpen
+                                      ? 'bg-[#FFF1F6] border-[#F0D9E3] text-[#E8005F] hover:bg-[#FFE3EE]'
+                                      : 'bg-[#F5F5F5] border-[#E0E0E0] text-[#666666] hover:bg-[#EAEAEA]'
+                                  }`}
+                                >
+                                  {product.isPreOrderOpen
+                                    ? 'Open (Click to Close)'
+                                    : 'Closed (Click to Open)'}
+                                </button>
+                              </td>
+                              <td className="px-6 py-4 text-right whitespace-nowrap">
+                                <div className="inline-flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditProductModal(product)}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-[#F0D9E3] hover:border-[#E8005F] text-[13px] font-medium tracking-[0.1em] uppercase text-[#222222] transition-colors cursor-pointer"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 text-[#E8005F]" />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void setProductActive(product.id, !product.active)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#F0D9E3] hover:border-[#52005C] text-[13px] font-medium tracking-[0.1em] uppercase text-[#52005C] transition-colors cursor-pointer"
+                                  >
+                                    <span>{product.active ? 'Deactivate' : 'Reactivate'}</span>
+                                  </button>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-[#555555] whitespace-nowrap">
-                              {cat ? cat.name : product.categorySlug}
-                            </td>
-                            <td className="px-6 py-4 text-right text-base font-medium text-[#222222] tabular-nums whitespace-nowrap">
-                              {product.variants && product.variants.length > 0
-                                ? `From ${formatNaira(product.priceNaira)}`
-                                : formatNaira(product.priceNaira)}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-[#4A4A4A] whitespace-nowrap">
-                              {formatArrivalDate(product.expectedArrivalDate)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <button
-                                type="button"
-                                onClick={() => toggleProductPreOrder(product.id)}
-                                className={`px-3 py-1.5 text-[13px] font-medium tracking-[0.06em] uppercase border transition-colors cursor-pointer ${
-                                  product.isPreOrderOpen
-                                    ? 'bg-[#FFF1F6] border-[#F0D9E3] text-[#E8005F] hover:bg-[#FFE3EE]'
-                                    : 'bg-[#F5F5F5] border-[#E0E0E0] text-[#666666] hover:bg-[#EAEAEA]'
-                                }`}
-                              >
-                                {product.isPreOrderOpen
-                                  ? 'Open (Click to Close)'
-                                  : 'Closed (Click to Open)'}
-                              </button>
-                            </td>
-                            <td className="px-6 py-4 text-right whitespace-nowrap">
-                              <button
-                                type="button"
-                                onClick={() => openEditProductModal(product)}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-[#F0D9E3] hover:border-[#E8005F] text-[13px] font-medium tracking-[0.1em] uppercase text-[#222222] transition-colors cursor-pointer"
-                              >
-                                <Edit3 className="w-3.5 h-3.5 text-[#E8005F]" />
-                                <span>Edit</span>
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -827,66 +991,74 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#EFE5EA]">
-                      {filteredOrders.map((order) => (
-                        <tr key={order.id} className="hover:bg-[#FFF1F6]/50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <p className="font-medium text-[#222222] tabular-nums">
-                              {order.orderNumber}
-                            </p>
-                            <p className="text-sm text-[#666666]">
-                              {formatArrivalDate(order.createdAt)}
-                            </p>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <p className="font-medium text-[#222222]">{order.customerName}</p>
-                            <p className="text-sm text-[#666666]">{order.customerWhatsApp}</p>
-                          </td>
-                          <td className="px-6 py-4 text-right text-base font-medium text-[#222222] tabular-nums whitespace-nowrap">
-                            {formatNaira(order.fullTotalNaira)}
-                          </td>
-                          <td className="px-6 py-4 text-right whitespace-nowrap">
-                            <p className="text-base font-medium text-[#E8005F] tabular-nums">
-                              {formatNaira(order.depositPaidNaira)}
-                            </p>
-                            <p className="text-sm text-[#666666]">
-                              {order.depositPercentageApplied}% upfront
-                            </p>
-                          </td>
-                          <td className="px-6 py-4 text-right whitespace-nowrap">
-                            <p className="text-base font-medium text-[#52005C] tabular-nums">
-                              {formatNaira(order.balanceRemainingNaira)}
-                            </p>
-                            {order.balanceRemainingNaira === 0 && (
-                              <p className="text-sm text-[#52005C]">Paid in full</p>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <select
-                              aria-label={`Change status for ${order.orderNumber}`}
-                              value={order.status}
-                              onChange={(e) =>
-                                updateOrderStatus(order.id, e.target.value as OrderStatus)
-                              }
-                              className="h-9 px-2.5 border border-[#F0D9E3] bg-white text-sm text-[#222222] focus:border-[#E8005F] focus:outline-none"
-                            >
-                              {ORDER_STATUS_STEPS.map((st) => (
-                                <option key={st} value={st}>
-                                  {st}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-6 py-4 text-right whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => setInspectingOrder(order)}
-                              className="text-[13px] font-medium tracking-[0.1em] uppercase text-[#E8005F] hover:text-[#52005C] cursor-pointer"
-                            >
-                              View ({order.items.length})
-                            </button>
+                      {filteredOrders.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-10 text-center text-base text-[#555555]">
+                            No orders match the current filter.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        filteredOrders.map((order) => (
+                          <tr key={order.id} className="hover:bg-[#FFF1F6]/50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <p className="font-medium text-[#222222] tabular-nums">
+                                {order.orderNumber}
+                              </p>
+                              <p className="text-sm text-[#666666]">
+                                {formatArrivalDate(order.createdAt)}
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <p className="font-medium text-[#222222]">{order.customerName}</p>
+                              <p className="text-sm text-[#666666]">{order.customerWhatsApp}</p>
+                            </td>
+                            <td className="px-6 py-4 text-right text-base font-medium text-[#222222] tabular-nums whitespace-nowrap">
+                              {formatNaira(order.fullTotalNaira)}
+                            </td>
+                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                              <p className="text-base font-medium text-[#E8005F] tabular-nums">
+                                {formatNaira(order.depositPaidNaira)}
+                              </p>
+                              <p className="text-sm text-[#666666]">
+                                {order.depositPercentageApplied}% upfront
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                              <p className="text-base font-medium text-[#52005C] tabular-nums">
+                                {formatNaira(order.balanceRemainingNaira)}
+                              </p>
+                              {order.balanceRemainingNaira === 0 && (
+                                <p className="text-sm text-[#52005C]">Paid in full</p>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <select
+                                aria-label={`Change status for ${order.orderNumber}`}
+                                value={order.status}
+                                onChange={(e) =>
+                                  void updateOrderStatus(order.id, e.target.value as OrderStatus)
+                                }
+                                className="h-9 px-2.5 border border-[#F0D9E3] bg-white text-sm text-[#222222] focus:border-[#E8005F] focus:outline-none"
+                              >
+                                {ORDER_STATUS_STEPS.map((st) => (
+                                  <option key={st} value={st}>
+                                    {st}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => setInspectingOrder(order)}
+                                className="text-[13px] font-medium tracking-[0.1em] uppercase text-[#E8005F] hover:text-[#52005C] cursor-pointer"
+                              >
+                                View ({order.items.length})
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -951,37 +1123,45 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#EFE5EA]">
-                      {payments.map((pay) => (
-                        <tr key={pay.id} className="hover:bg-[#FFF1F6]/50">
-                          <td className="px-6 py-4 font-mono text-sm text-[#4A4A4A] whitespace-nowrap">
-                            {pay.reference}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-[#666666] whitespace-nowrap">
-                            {formatArrivalDate(pay.date)}
-                          </td>
-                          <td className="px-6 py-4 font-medium text-[#222222] tabular-nums whitespace-nowrap">
-                            {pay.orderNumber}
-                          </td>
-                          <td className="px-6 py-4 text-[#4A4A4A] whitespace-nowrap">
-                            {pay.customerName}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`text-sm font-medium ${
-                                pay.type === 'Balance' ? 'text-[#52005C]' : 'text-[#E8005F]'
-                              }`}
-                            >
-                              {pay.type === 'Full Payment' ? 'Full Payment' : `${pay.type} Payment`}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right text-base font-medium text-[#222222] tabular-nums whitespace-nowrap">
-                            {formatNaira(pay.amountNaira)}
-                          </td>
-                          <td className="px-6 py-4 text-sm font-medium text-[#E8005F] whitespace-nowrap">
-                            {pay.status}
+                      {payments.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-10 text-center text-base text-[#555555]">
+                            No payment records have been logged yet.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        payments.map((pay) => (
+                          <tr key={pay.id} className="hover:bg-[#FFF1F6]/50">
+                            <td className="px-6 py-4 font-mono text-sm text-[#4A4A4A] whitespace-nowrap">
+                              {pay.reference}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-[#666666] whitespace-nowrap">
+                              {formatArrivalDate(pay.date)}
+                            </td>
+                            <td className="px-6 py-4 font-medium text-[#222222] tabular-nums whitespace-nowrap">
+                              {pay.orderNumber}
+                            </td>
+                            <td className="px-6 py-4 text-[#4A4A4A] whitespace-nowrap">
+                              {pay.customerName}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`text-sm font-medium ${
+                                  pay.type === 'Balance' ? 'text-[#52005C]' : 'text-[#E8005F]'
+                                }`}
+                              >
+                                {pay.type === 'Full Payment' ? 'Full Payment' : `${pay.type} Payment`}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right text-base font-medium text-[#222222] tabular-nums whitespace-nowrap">
+                              {formatNaira(pay.amountNaira)}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-[#52005C] whitespace-nowrap capitalize">
+                              {pay.status}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1107,17 +1287,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 </div>
 
                 <div className="bg-[#FFF1F6] border border-[#F0D9E3] p-5 text-base text-[#4A4A4A] leading-relaxed">
-                  <strong className="font-medium text-[#52005C]">Paystack Configuration Note:</strong>{' '}
-                  Your Paystack public key, upfront payment options (50%, 75%, 100%), and default
-                  upfront percentage are stored cleanly in the application configuration file so
-                  live Paystack payments can be connected without rebuilding checkout screens.
+                  <strong className="font-medium text-[#52005C]">Payment Records Note:</strong>{' '}
+                  Upfront payment options ({settings.upfrontOptions.join('%, ')}%) are read from
+                  your Supabase store settings table. Checkout payments are currently saved as
+                  simulated payment records until live payment verification is connected.
                 </div>
 
                 <button
                   type="submit"
-                  className="px-8 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.16em] uppercase transition-colors cursor-pointer"
+                  disabled={savingSettings}
+                  className="px-8 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] disabled:opacity-60 text-white text-[13px] font-medium tracking-[0.16em] uppercase transition-colors cursor-pointer"
                 >
-                  Save Store Settings
+                  {savingSettings ? 'Saving Settings...' : 'Save Store Settings'}
                 </button>
               </form>
             </div>
@@ -1373,16 +1554,22 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
               <div className="pt-5 border-t border-[#EFE5EA] flex justify-end gap-3">
                 <button
                   type="button"
+                  disabled={savingProduct}
                   onClick={() => setProductModalOpen(false)}
-                  className="px-5 py-2.5 border border-[#F0D9E3] hover:border-[#52005C] text-[13px] font-medium tracking-[0.13em] uppercase text-[#222222] cursor-pointer"
+                  className="px-5 py-2.5 border border-[#F0D9E3] hover:border-[#52005C] disabled:opacity-60 text-[13px] font-medium tracking-[0.13em] uppercase text-[#222222] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.13em] uppercase cursor-pointer"
+                  disabled={savingProduct}
+                  className="px-6 py-2.5 bg-[#E8005F] hover:bg-[#C4004F] disabled:opacity-60 text-white text-[13px] font-medium tracking-[0.13em] uppercase cursor-pointer"
                 >
-                  {editingProductId ? 'Save Changes' : 'Add Product'}
+                  {savingProduct
+                    ? 'Saving & Uploading...'
+                    : editingProductId
+                      ? 'Save Changes'
+                      : 'Add Product'}
                 </button>
               </div>
             </form>

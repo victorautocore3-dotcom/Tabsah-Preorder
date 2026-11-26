@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowRight, Check, Lock, ShieldCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import {
@@ -13,6 +13,7 @@ export const CheckoutPage: React.FC = () => {
     cartDetailedItems,
     cartSubtotal,
     currentCustomer,
+    authLoading,
     settings,
     placeOrder,
     navigate,
@@ -26,10 +27,25 @@ export const CheckoutPage: React.FC = () => {
   const [upfrontPercentage, setUpfrontPercentage] = useState<number>(
     settings.defaultUpfrontPercentage
   );
-  const [password, setPassword] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+
+  useEffect(() => {
+    if (currentCustomer) {
+      setName((prev) => prev || currentCustomer.name);
+      setWhatsApp((prev) => prev || currentCustomer.whatsApp);
+      setEmail((prev) => prev || currentCustomer.email);
+      setDeliveryAddress((prev) => prev || currentCustomer.deliveryAddress);
+    }
+  }, [currentCustomer]);
+
+  useEffect(() => {
+    if (!settings.upfrontOptions.includes(upfrontPercentage)) {
+      setUpfrontPercentage(settings.defaultUpfrontPercentage);
+    }
+  }, [settings.defaultUpfrontPercentage, settings.upfrontOptions, upfrontPercentage]);
 
   const selectedZone =
     settings.deliveryFees.find((z) => z.id === deliveryZoneId) ?? settings.deliveryFees[0];
@@ -42,16 +58,17 @@ export const CheckoutPage: React.FC = () => {
     ? `Pay in Full (${formatNaira(payNow)})`
     : `Pay ${upfrontPercentage} Percent Now (${formatNaira(payNow)})`;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
-    if (!name.trim() || !whatsApp.trim() || !email.trim() || !deliveryAddress.trim()) {
-      setFormError('Please fill in your name, WhatsApp number, email, and delivery address.');
+    if (!currentCustomer) {
+      navigate({ page: 'login', redirectTo: 'checkout' });
       return;
     }
-    if (!currentCustomer && password.trim().length < 6) {
-      setFormError('Please choose a password of at least 6 characters to create your account.');
+
+    if (!name.trim() || !whatsApp.trim() || !email.trim() || !deliveryAddress.trim()) {
+      setFormError('Please fill in your name, WhatsApp number, email, and delivery address.');
       return;
     }
     if (!acceptedTerms) {
@@ -59,22 +76,26 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
 
-    const result = placeOrder({
-      name,
-      whatsApp,
-      email,
-      deliveryZoneId,
-      deliveryAddress,
-      upfrontPercentage,
-      password: password.trim(),
-    });
+    setSubmitting(true);
+    try {
+      const result = await placeOrder({
+        name,
+        whatsApp,
+        email,
+        deliveryZoneId,
+        deliveryAddress,
+        upfrontPercentage,
+      });
 
-    if (!result.ok || !result.order) {
-      setFormError(result.error ?? 'Could not complete your order. Please try again.');
-      return;
+      if (!result.ok || !result.order) {
+        setFormError(result.error ?? 'Could not complete your order. Please try again.');
+        return;
+      }
+
+      setCompletedOrder(result.order);
+    } finally {
+      setSubmitting(false);
     }
-
-    setCompletedOrder(result.order);
   };
 
   if (completedOrder) {
@@ -166,6 +187,51 @@ export const CheckoutPage: React.FC = () => {
               className="px-7 py-3.5 bg-[#52005C] hover:bg-[#3D0045] text-white text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors cursor-pointer"
             >
               Continue Shopping
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <div className="max-w-2xl mx-auto px-5 py-24 text-center text-base text-[#555555]">
+        Checking your account...
+      </div>
+    );
+  }
+
+  if (!currentCustomer) {
+    return (
+      <div className="max-w-xl mx-auto px-5 py-20 text-center">
+        <div className="border border-[#F0D9E3] bg-white p-8 sm:p-10 space-y-5">
+          <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C]">
+            Sign In Required
+          </p>
+          <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222]">
+            Sign in before checking out
+          </h1>
+          <p className="text-base text-[#555555] leading-relaxed">
+            Please sign in or create your Tabsah customer account first so your pre-order, arrival
+            tracking, and balance payments are saved to your account. Your cart items will stay
+            right here.
+          </p>
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate({ page: 'login', redirectTo: 'checkout' })}
+              className="px-7 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <span>Sign In / Create Account</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate({ page: 'cart' })}
+              className="px-6 py-3.5 border border-[#F0D9E3] hover:border-[#52005C] text-[#222222] text-[13px] tracking-[0.14em] uppercase font-medium transition-colors cursor-pointer"
+            >
+              Back to Cart
             </button>
           </div>
         </div>
@@ -394,7 +460,7 @@ export const CheckoutPage: React.FC = () => {
             </div>
           </section>
 
-          {/* Create Account at Checkout */}
+          {/* Signed-in Customer Account Confirmation */}
           <section className="space-y-5 pb-8 border-b border-[#EFE5EA]">
             <div>
               <p className="text-[13px] tracking-[0.18em] uppercase text-[#52005C] mb-1">Step 03</p>
@@ -403,36 +469,11 @@ export const CheckoutPage: React.FC = () => {
               </h2>
             </div>
 
-            {currentCustomer ? (
-              <div className="bg-[#FFF1F6] border border-[#F0D9E3] p-4 text-base text-[#222222] leading-relaxed">
-                Signed in as <strong>{currentCustomer.name}</strong> ({currentCustomer.email}). This
-                order will be saved in your Customer Dashboard so you can track arrival and settle
-                any remaining balance later.
-              </div>
-            ) : (
-              <div>
-                <p className="text-base text-[#555555] mb-4 leading-relaxed">
-                  Choose a password to create your Tabsah account right now. You will use it to
-                  track your batch and manage your order when it arrives.
-                </p>
-                <label
-                  htmlFor="co-password"
-                  className="block text-[13px] tracking-[0.11em] uppercase font-medium text-[#4A4A4A] mb-2"
-                >
-                  Create Account Password
-                </label>
-                <input
-                  id="co-password"
-                  type="password"
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimum 6 characters"
-                  className="w-full h-11 px-3.5 border border-[#F0D9E3] bg-white text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
-                />
-              </div>
-            )}
+            <div className="bg-[#FFF1F6] border border-[#F0D9E3] p-4 text-base text-[#222222] leading-relaxed">
+              Signed in as <strong>{currentCustomer.name}</strong> ({currentCustomer.email}). This
+              order will be saved in your Customer Dashboard so you can track arrival and settle
+              any remaining balance later.
+            </div>
           </section>
 
           {/* Terms Acceptance */}
@@ -565,17 +606,18 @@ export const CheckoutPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full py-4 px-5 sm:px-6 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.14em] sm:tracking-[0.16em] uppercase font-semibold inline-flex items-center justify-center gap-2.5 text-center transition-colors cursor-pointer"
+            disabled={submitting}
+            className="w-full py-4 px-5 sm:px-6 bg-[#E8005F] hover:bg-[#C4004F] disabled:opacity-60 text-white text-[13px] tracking-[0.14em] sm:tracking-[0.16em] uppercase font-semibold inline-flex items-center justify-center gap-2.5 text-center transition-colors cursor-pointer"
           >
             <Lock className="w-3.5 h-3.5 shrink-0" />
-            <span>{payButtonLabel}</span>
+            <span>{submitting ? 'Recording Order...' : payButtonLabel}</span>
           </button>
 
           <div className="flex items-start gap-2.5 text-base text-[#666666] leading-relaxed">
             <ShieldCheck className="w-4 h-4 text-[#52005C] shrink-0 mt-1" />
             <span>
-              Your pre-order and payment receipt will be saved to your customer account immediately
-              after confirmation.
+              Your pre-order and simulated payment record will be saved to your customer account
+              immediately after confirmation.
             </span>
           </div>
         </aside>

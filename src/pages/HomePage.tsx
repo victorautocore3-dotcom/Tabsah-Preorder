@@ -16,7 +16,7 @@ const EDITORIAL_STORY_LIVING = '/src/assets/images/editorial_story_living_179546
 const HERO_INTERVAL_MS = 6000;
 
 export const HomePage: React.FC = () => {
-  const { categories, products, navigate, getWhatsAppUrl } = useStore();
+  const { categories, products, productsLoading, navigate, getWhatsAppUrl } = useStore();
   const [activeSlide, setActiveSlide] = useState(0);
   const [timerResetKey, setTimerResetKey] = useState(0);
 
@@ -284,11 +284,27 @@ export const HomePage: React.FC = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-7 gap-y-14">
-            {firstRowFeatured.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {productsLoading ? (
+            <div className="border-t border-b border-[#F0D9E3] py-14 text-center text-base text-[#555555]">
+              Loading featured pre-orders...
+            </div>
+          ) : firstRowFeatured.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-7 gap-y-14">
+              {firstRowFeatured.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="border-t border-b border-[#F0D9E3] py-14 text-center">
+              <h3 className="font-display text-2xl font-medium text-[#222222]">
+                New pre-order batch arriving soon
+              </h3>
+              <p className="mt-2 text-base text-[#555555] max-w-lg mx-auto">
+                Our curated items are being published to the catalogue. Check back shortly or
+                message our WhatsApp concierge for upcoming batch details.
+              </p>
+            </div>
+          )}
         </section>
       </RevealSection>
 

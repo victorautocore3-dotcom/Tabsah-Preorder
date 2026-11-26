@@ -14,7 +14,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   initialCategorySlug,
   initialSearchQuery = '',
 }) => {
-  const { categories, products, navigate } = useStore();
+  const { categories, products, productsLoading, productsError, navigate } = useStore();
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategorySlug ?? 'all');
   const [searchText, setSearchText] = useState<string>(initialSearchQuery);
   const [sortBy, setSortBy] = useState<SortOption>('featured');
@@ -194,11 +194,33 @@ export const ShopPage: React.FC<ShopPageProps> = ({
       </div>
 
       {/* Spacious 3-Column Editorial Product Grid */}
-      {filteredProducts.length > 0 ? (
+      {productsLoading ? (
+        <div className="border-t border-b border-[#F0D9E3] py-16 text-center">
+          <p className="text-base text-[#555555]">Loading pre-order catalogue...</p>
+        </div>
+      ) : filteredProducts.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-14">
           {filteredProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
+        </div>
+      ) : products.length === 0 ? (
+        <div className="border-t border-b border-[#F0D9E3] py-16 text-center max-w-2xl mx-auto">
+          <p className="text-[13px] tracking-[0.18em] uppercase font-medium text-[#52005C] mb-2">
+            Catalogue Updating
+          </p>
+          <h2 className="font-display text-3xl font-medium text-[#222222]">
+            Our next pre-order batch is being prepared
+          </h2>
+          <p className="mt-3 text-base text-[#555555] leading-relaxed">
+            No pre-order items are published in the catalogue yet. Please check back shortly or
+            reach out on WhatsApp for upcoming arrival dates.
+          </p>
+          {productsError && (
+            <p className="mt-4 text-sm text-[#991B1B] bg-[#FEF2F2] border border-[#FECACA] px-4 py-2.5 inline-block">
+              Database read notice: {productsError}
+            </p>
+          )}
         </div>
       ) : (
         <div className="border-t border-b border-[#F0D9E3] py-16 text-center">

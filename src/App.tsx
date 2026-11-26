@@ -19,7 +19,7 @@ import { AdminDashboardPage, AdminLoginGate } from './pages/AdminDashboardPage';
 import { InfoPages } from './pages/InfoPages';
 
 const AppShell: React.FC = () => {
-  const { route, toast, isAdmin } = useStore();
+  const { route, toast, isAdmin, authLoading } = useStore();
 
   const renderPage = () => {
     switch (route.page) {
@@ -39,7 +39,7 @@ const AppShell: React.FC = () => {
       case 'checkout':
         return <CheckoutPage />;
       case 'login':
-        return <LoginPage />;
+        return <LoginPage redirectTo={route.redirectTo} />;
       case 'account':
         return (
           <CustomerDashboardPage
@@ -48,6 +48,13 @@ const AppShell: React.FC = () => {
           />
         );
       case 'admin':
+        if (authLoading) {
+          return (
+            <div className="max-w-lg mx-auto px-5 py-24 text-center text-base text-[#555555]">
+              Checking session...
+            </div>
+          );
+        }
         return isAdmin ? <AdminDashboardPage initialTab={route.tab} /> : <AdminLoginGate />;
       case 'info':
         return <InfoPages slug={route.slug} />;
