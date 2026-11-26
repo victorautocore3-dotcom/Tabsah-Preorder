@@ -39,7 +39,9 @@ const AppShell: React.FC = () => {
       case 'checkout':
         return <CheckoutPage />;
       case 'login':
-        return <LoginPage redirectTo={route.redirectTo} />;
+        return <LoginPage mode="login" redirectTo={route.redirectTo} />;
+      case 'register':
+        return <LoginPage mode="register" redirectTo={route.redirectTo} />;
       case 'account':
         return (
           <CustomerDashboardPage

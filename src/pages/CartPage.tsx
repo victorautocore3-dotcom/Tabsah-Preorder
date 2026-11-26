@@ -7,6 +7,7 @@ import {
   formatNaira,
 } from '../data/storeData';
 import { ProductImage } from '../components/ProductImage';
+import { BackButton } from '../components/BackButton';
 
 export const CartPage: React.FC = () => {
   const {
@@ -23,10 +24,14 @@ export const CartPage: React.FC = () => {
 
   if (cartDetailedItems.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto px-5 sm:px-8 py-24 sm:py-32 text-center">
-        <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-3">
-          Shopping Bag
-        </p>
+      <div className="max-w-2xl mx-auto px-5 sm:px-8 py-16 sm:py-24">
+        <div className="mb-8">
+          <BackButton fallback={{ page: 'shop' }} />
+        </div>
+        <div className="text-center">
+          <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-3">
+            Shopping Bag
+          </p>
         <h1 className="font-display text-4xl sm:text-5xl font-medium text-[#222222]">
           Your pre-order bag is empty
         </h1>
@@ -42,12 +47,16 @@ export const CartPage: React.FC = () => {
           <span>Browse Pre-Orders</span>
           <ArrowRight className="w-4 h-4" />
         </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
+      <div className="mb-5">
+        <BackButton fallback={{ page: 'shop' }} />
+      </div>
       <div className="pb-8 mb-10 border-b border-[#F0D9E3]">
         <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-2">
           Shopping Bag

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Check, MessageCircle, Minus, Plus } from 'lucide-react';
+import { Check, MessageCircle, Minus, Plus } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import {
   calculateDepositAndBalance,
@@ -9,6 +9,7 @@ import {
 } from '../data/storeData';
 import { ProductImage } from '../components/ProductImage';
 import { ProductCard } from '../components/ProductCard';
+import { BackButton } from '../components/BackButton';
 
 interface ProductDetailPageProps {
   productSlug: string;
@@ -20,7 +21,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
 
-  const product = products.find((p) => p.slug === productSlug) ?? products[0] ?? null;
+  const product = products.find((p) => p.slug === productSlug) ?? null;
   const lowestVariant = product ? getLowestVariant(product) : undefined;
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -47,23 +48,28 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
 
   if (!product) {
     return (
-      <div className="max-w-2xl mx-auto px-5 py-24 text-center">
-        <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-2">
-          Catalogue
-        </p>
-        <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222]">
-          This pre-order item is not available right now
-        </h1>
-        <p className="mt-3 text-base text-[#555555]">
-          Return to the catalogue to browse active pre-order batches.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate({ page: 'shop' })}
-          className="mt-7 px-7 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors cursor-pointer"
-        >
-          Back to Catalogue
-        </button>
+      <div className="max-w-2xl mx-auto px-5 py-16 sm:py-20">
+        <div className="mb-8">
+          <BackButton fallback={{ page: 'shop' }} />
+        </div>
+        <div className="text-center">
+          <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-2">
+            Catalogue
+          </p>
+          <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222]">
+            This pre-order item is not available right now
+          </h1>
+          <p className="mt-3 text-base text-[#555555]">
+            Return to the catalogue to browse active pre-order batches.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate({ page: 'shop' })}
+            className="mt-7 px-7 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors cursor-pointer"
+          >
+            Back to Catalogue
+          </button>
+        </div>
       </div>
     );
   }
@@ -118,16 +124,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
           <span className="text-[#222222] font-medium break-words">{product.name}</span>
         </nav>
 
-        <button
-          type="button"
-          onClick={() =>
-            navigate({ page: 'shop', categorySlug: category ? category.slug : undefined })
-          }
-          className="inline-flex items-center gap-2 text-[13px] tracking-[0.13em] uppercase font-semibold text-[#E8005F] hover:text-[#52005C] cursor-pointer"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
-          <span>Back to Catalogue</span>
-        </button>
+        <BackButton fallback={{ page: 'shop' }} />
       </div>
 
       {/* Main Split: Large Flush Photo Left, Calm Editorial Purchase Column Right */}

@@ -7,6 +7,7 @@ import {
   formatNaira,
   Order,
 } from '../data/storeData';
+import { BackButton } from '../components/BackButton';
 
 export const CheckoutPage: React.FC = () => {
   const {
@@ -100,7 +101,10 @@ export const CheckoutPage: React.FC = () => {
 
   if (completedOrder) {
     return (
-      <div className="max-w-3xl mx-auto px-5 sm:px-8 py-16 sm:py-20">
+      <div className="max-w-3xl mx-auto px-5 sm:px-8 py-12 sm:py-16">
+        <div className="mb-5">
+          <BackButton fallback={{ page: 'shop' }} />
+        </div>
         <div className="border border-[#F0D9E3] bg-white p-8 sm:p-12">
           <div className="w-11 h-11 bg-[#FFF1F6] text-[#E8005F] flex items-center justify-center mb-6">
             <Check className="w-5 h-5" />
@@ -204,8 +208,11 @@ export const CheckoutPage: React.FC = () => {
 
   if (!currentCustomer) {
     return (
-      <div className="max-w-xl mx-auto px-5 py-20 text-center">
-        <div className="border border-[#F0D9E3] bg-white p-8 sm:p-10 space-y-5">
+      <div className="max-w-xl mx-auto px-5 py-14 sm:py-16">
+        <div className="mb-5">
+          <BackButton fallback={{ page: 'shop' }} />
+        </div>
+        <div className="border border-[#F0D9E3] bg-white p-8 sm:p-10 space-y-5 text-center">
           <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C]">
             Sign In Required
           </p>
@@ -241,26 +248,34 @@ export const CheckoutPage: React.FC = () => {
 
   if (cartDetailedItems.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto px-5 py-24 text-center">
-        <h1 className="font-display text-3xl font-medium text-[#222222]">
-          No items ready for checkout
-        </h1>
-        <p className="mt-3 text-base text-[#555555]">
-          Add at least one pre-order item to your cart before checking out.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate({ page: 'shop' })}
-          className="mt-7 px-7 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors cursor-pointer"
-        >
-          Go to Shop
-        </button>
+      <div className="max-w-2xl mx-auto px-5 py-16 sm:py-20">
+        <div className="mb-8">
+          <BackButton fallback={{ page: 'shop' }} />
+        </div>
+        <div className="text-center">
+          <h1 className="font-display text-3xl font-medium text-[#222222]">
+            No items ready for checkout
+          </h1>
+          <p className="mt-3 text-base text-[#555555]">
+            Add at least one pre-order item to your cart before checking out.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate({ page: 'shop' })}
+            className="mt-7 px-7 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors cursor-pointer"
+          >
+            Go to Shop
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
+      <div className="mb-5">
+        <BackButton fallback={{ page: 'shop' }} />
+      </div>
       <div className="pb-8 mb-10 border-b border-[#F0D9E3]">
         <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-2">
           Checkout

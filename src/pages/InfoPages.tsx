@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, Instagram, Mail, MapPin, MessageCircle } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { formatNaira } from '../data/storeData';
+import { BackButton } from '../components/BackButton';
 
 interface InfoPagesProps {
   slug: 'preorder-terms' | 'refund-policy' | 'privacy-policy' | 'delivery-info' | 'contact';
@@ -32,6 +33,9 @@ export const InfoPages: React.FC<InfoPagesProps> = ({ slug }) => {
 
   return (
     <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
+      <div className="mb-5">
+        <BackButton fallback={{ page: 'home' }} />
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         {/* Quiet Editorial Sidebar */}
         <aside className="lg:col-span-3 min-w-0 lg:border-r lg:border-[#EFE5EA] lg:pr-8">

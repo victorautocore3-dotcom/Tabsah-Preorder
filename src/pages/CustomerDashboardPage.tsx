@@ -18,6 +18,7 @@ import {
   Order,
 } from '../data/storeData';
 import { ProductImage } from '../components/ProductImage';
+import { BackButton } from '../components/BackButton';
 
 interface CustomerDashboardPageProps {
   initialTab?: 'orders' | 'details';
@@ -60,7 +61,7 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
   }, [initialTab]);
 
   React.useEffect(() => {
-    if (initialOrderId) setSelectedOrderId(initialOrderId);
+    setSelectedOrderId(initialOrderId ?? null);
   }, [initialOrderId]);
 
   React.useEffect(() => {
@@ -82,23 +83,28 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
 
   if (!currentCustomer) {
     return (
-      <div className="max-w-xl mx-auto px-5 py-24 text-center">
-        <p className="text-[13px] font-medium tracking-[0.2em] uppercase text-[#52005C] mb-3">
-          Account Access
-        </p>
-        <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222]">
-          Please sign in to view your dashboard
-        </h1>
-        <p className="mt-3 text-base text-[#555555] leading-relaxed">
-          Sign in with your customer email and password to see your orders and remaining balances.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate({ page: 'login' })}
-          className="mt-8 px-8 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.16em] uppercase transition-colors cursor-pointer"
-        >
-          Go to Login
-        </button>
+      <div className="max-w-xl mx-auto px-5 py-16 sm:py-20">
+        <div className="mb-8">
+          <BackButton fallback={{ page: 'home' }} />
+        </div>
+        <div className="text-center">
+          <p className="text-[13px] font-medium tracking-[0.2em] uppercase text-[#52005C] mb-3">
+            Account Access
+          </p>
+          <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222]">
+            Please sign in to view your dashboard
+          </h1>
+          <p className="mt-3 text-base text-[#555555] leading-relaxed">
+            Sign in with your customer email and password to see your orders and remaining balances.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate({ page: 'login' })}
+            className="mt-8 px-8 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.16em] uppercase transition-colors cursor-pointer"
+          >
+            Go to Login
+          </button>
+        </div>
       </div>
     );
   }
@@ -125,6 +131,7 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
       }
       setLookupResult(res.order);
       setSelectedOrderId(res.order.id);
+      navigate({ page: 'account', tab: 'orders', orderId: res.order.id });
     } finally {
       setLookupBusy(false);
     }
@@ -151,6 +158,9 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
 
   return (
     <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
+      <div className="mb-5">
+        <BackButton fallback={{ page: 'home' }} />
+      </div>
       {/* Top Header */}
       <div className="bg-[#FFF1F6] border border-[#F0D9E3] px-5 sm:px-10 py-7 sm:py-10 mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
         <div className="min-w-0">
@@ -182,6 +192,7 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
           onClick={() => {
             setActiveTab('orders');
             setSelectedOrderId(null);
+            navigate({ page: 'account', tab: 'orders' });
           }}
           className={`inline-flex items-center gap-2 pb-3.5 text-[13px] font-medium tracking-[0.14em] uppercase border-b-2 -mb-px transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'orders'
@@ -197,6 +208,7 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
           onClick={() => {
             setActiveTab('details');
             setSelectedOrderId(null);
+            navigate({ page: 'account', tab: 'details' });
           }}
           className={`inline-flex items-center gap-2 pb-3.5 text-[13px] font-medium tracking-[0.14em] uppercase border-b-2 -mb-px transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === 'details'
@@ -216,7 +228,10 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
             <div className="space-y-8">
               <button
                 type="button"
-                onClick={() => setSelectedOrderId(null)}
+                onClick={() => {
+                  setSelectedOrderId(null);
+                  navigate({ page: 'account', tab: 'orders' });
+                }}
                 className="inline-flex items-center gap-2 text-[13px] font-medium tracking-[0.13em] uppercase text-[#E8005F] hover:text-[#52005C] cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
@@ -582,7 +597,10 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                       )}
                       <button
                         type="button"
-                        onClick={() => setSelectedOrderId(order.id)}
+                        onClick={() => {
+                          setSelectedOrderId(order.id);
+                          navigate({ page: 'account', tab: 'orders', orderId: order.id });
+                        }}
                         className="px-5 py-2.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.12em] uppercase whitespace-nowrap transition-colors cursor-pointer"
                       >
                         View Details

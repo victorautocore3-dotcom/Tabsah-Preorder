@@ -29,6 +29,8 @@ import {
 import { DbProductWithActive } from '../services/supabaseDb';
 import { DeliveryZoneFee } from '../config/storeConfig';
 import { ProductImage } from '../components/ProductImage';
+import { PasswordInput } from '../components/PasswordInput';
+import { BackButton } from '../components/BackButton';
 
 type AdminTab = 'overview' | 'products' | 'orders' | 'payments' | 'settings';
 
@@ -69,7 +71,10 @@ export const AdminLoginGate: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto px-4 sm:px-8 py-14 sm:py-20">
+    <div className="w-full max-w-lg mx-auto px-4 sm:px-8 py-12 sm:py-16">
+      <div className="mb-5">
+        <BackButton fallback={{ page: 'home' }} />
+      </div>
       <div className="border border-[#F0D9E3] bg-white p-6 sm:p-10 space-y-6">
         <div className="space-y-2 pb-5 border-b border-[#EFE5EA]">
           <div className="inline-flex items-center gap-2 text-[13px] tracking-[0.18em] uppercase font-medium text-[#52005C]">
@@ -112,15 +117,13 @@ export const AdminLoginGate: React.FC = () => {
             >
               Password
             </label>
-            <input
+            <PasswordInput
               id="admin-password"
-              type="password"
               required
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
-              className="w-full h-11 px-3.5 border border-[#F0D9E3] text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
             />
           </div>
 
@@ -453,6 +456,9 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
   return (
     <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
+      <div className="mb-5">
+        <BackButton fallback={{ page: 'admin', tab: 'overview' }} />
+      </div>
       <div className="flex flex-col lg:flex-row gap-10 items-start">
         {/* Sidebar Navigation */}
         <aside className="w-full lg:w-64 shrink-0 min-w-0 bg-white border border-[#F0D9E3] p-5">
@@ -473,7 +479,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    navigate({ page: 'admin', tab: item.id });
+                  }}
                   className={`flex items-center gap-3 px-3.5 py-2.5 text-[13px] font-medium tracking-[0.13em] uppercase transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     active
                       ? 'bg-[#E8005F] text-white'
@@ -539,6 +548,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   type="button"
                   onClick={() => {
                     setActiveTab('products');
+                    navigate({ page: 'admin', tab: 'products' });
                     openAddProductModal();
                   }}
                   className="inline-flex items-center gap-2 px-5 py-3 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] font-medium tracking-[0.14em] uppercase whitespace-nowrap self-start sm:self-auto transition-colors cursor-pointer"
@@ -670,7 +680,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   </h3>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('orders')}
+                    onClick={() => {
+                      setActiveTab('orders');
+                      navigate({ page: 'admin', tab: 'orders' });
+                    }}
                     className="text-[13px] font-medium tracking-[0.13em] uppercase text-[#E8005F] hover:text-[#52005C] cursor-pointer"
                   >
                     Manage all orders

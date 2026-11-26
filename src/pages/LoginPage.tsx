@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { PasswordInput } from '../components/PasswordInput';
+import { BackButton } from '../components/BackButton';
 
 interface LoginPageProps {
+  mode?: 'login' | 'register';
   redirectTo?: 'checkout' | 'account';
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ redirectTo = 'account' }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({
+  mode = 'login',
+  redirectTo = 'account',
+}) => {
   const { loginCustomer, registerCustomer, navigate } = useStore();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -67,7 +72,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectTo = 'account' }) 
           res.message ??
             'Account created. Please check your email inbox to confirm your address, then sign in.'
         );
-        setMode('login');
+        navigate({
+          page: 'login',
+          redirectTo: redirectTo === 'checkout' ? 'checkout' : undefined,
+        });
         return;
       }
       if (res.isAdmin) {
@@ -83,7 +91,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectTo = 'account' }) 
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto px-4 sm:px-8 py-14 sm:py-20">
+    <div className="w-full max-w-xl mx-auto px-4 sm:px-8 py-12 sm:py-16">
+      <div className="mb-5">
+        <BackButton fallback={redirectTo === 'checkout' ? { page: 'shop' } : { page: 'home' }} />
+      </div>
+
       <div className="min-w-0 border border-[#F0D9E3] bg-white p-5 sm:p-10">
         {redirectTo === 'checkout' && (
           <div className="mb-6 bg-[#FFF1F6] border border-[#F0D9E3] px-4 py-3 text-base text-[#52005C]">
@@ -96,8 +108,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectTo = 'account' }) 
           <button
             type="button"
             onClick={() => {
-              setMode('login');
               setError('');
+              navigate({
+                page: 'login',
+                redirectTo: redirectTo === 'checkout' ? 'checkout' : undefined,
+              });
             }}
             className={`pb-3 text-[13px] tracking-[0.14em] uppercase font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
               mode === 'login'
@@ -110,9 +125,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectTo = 'account' }) 
           <button
             type="button"
             onClick={() => {
-              setMode('register');
               setError('');
               setInfoMessage('');
+              navigate({
+                page: 'register',
+                redirectTo: redirectTo === 'checkout' ? 'checkout' : undefined,
+              });
             }}
             className={`pb-3 text-[13px] tracking-[0.14em] uppercase font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
               mode === 'register'
@@ -173,15 +191,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectTo = 'account' }) 
               >
                 Password
               </label>
-              <input
+              <PasswordInput
+                key="login-password"
                 id="login-password"
-                type="password"
                 required
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="w-full h-11 px-3.5 border border-[#F0D9E3] text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
               />
             </div>
 
@@ -307,16 +324,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ redirectTo = 'account' }) 
               >
                 Password
               </label>
-              <input
+              <PasswordInput
+                key="reg-password"
                 id="reg-password"
-                type="password"
                 required
                 minLength={6}
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                className="w-full h-11 px-3.5 border border-[#F0D9E3] text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
               />
             </div>
 

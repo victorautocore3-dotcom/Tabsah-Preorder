@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { DeliveryZoneFee, STORE_CONFIG, StoreConfig } from '../config/storeConfig';
 import { supabase } from '../config/supabase';
 import {
@@ -23,17 +23,13 @@ import {
   updateRowResilient,
   uploadProductImageSource,
 } from '../services/supabaseDb';
+import {
+  readCurrentLocationRoute,
+  routeToHash,
+  RouteView,
+} from '../utils/hashRouter';
 
-export type RouteView =
-  | { page: 'home' }
-  | { page: 'shop'; categorySlug?: string; searchQuery?: string }
-  | { page: 'product'; productSlug: string }
-  | { page: 'cart' }
-  | { page: 'checkout' }
-  | { page: 'login'; redirectTo?: 'checkout' | 'account' }
-  | { page: 'account'; tab?: 'orders' | 'details'; orderId?: string }
-  | { page: 'admin'; tab?: 'overview' | 'products' | 'orders' | 'payments' | 'settings' }
-  | { page: 'info'; slug: 'preorder-terms' | 'refund-policy' | 'privacy-policy' | 'delivery-info' | 'contact' };
+export type { RouteView };
 
 export interface CartItem {
   productId: string;
@@ -65,6 +61,8 @@ interface ToastMessage {
 interface StoreContextValue {
   route: RouteView;
   navigate: (next: RouteView) => void;
+  goBack: (fallback: RouteView) => void;
+  canGoBack: boolean;
   categories: Category[];
   products: Product[];
   adminProducts: DbProductWithActive[];
@@ -211,11 +209,12 @@ function slugify(input: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
-function isAdminLocation(): boolean {
-  if (typeof window === 'undefined') return false;
-  const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
-  const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
-  return path === '/admin' || hash === 'admin';
+function readHistoryNavIdx(): number | null {
+  if (typeof window === 'undefined') return null;
+  const state = window.history.state as { tabsahNavIdx?: unknown } | null;
+  return typeof state?.tabsahNavIdx === 'number' && state.tabsahNavIdx >= 0
+    ? state.tabsahNavIdx
+    : null;
 }
 
 function parseUpfrontOptions(rawValue: unknown): number[] {
@@ -246,9 +245,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   });
 
-  const [route, setRoute] = useState<RouteView>(() =>
-    isAdminLocation() ? { page: 'admin', tab: 'overview' } : { page: 'home' }
-  );
+  const [route, setRoute] = useState<RouteView>(() => readCurrentLocationRoute());
+  const routeRef = useRef<RouteView>(route);
+  const initialNavIdx = readHistoryNavIdx() ?? 0;
+  const historyIdxRef = useRef<number>(initialNavIdx);
+  const [canGoBack, setCanGoBack] = useState<boolean>(initialNavIdx > 0);
   const [categories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [products, setProducts] = useState<Product[]>([]);
   const [adminProducts, setAdminProducts] = useState<DbProductWithActive[]>([]);
@@ -269,17 +270,61 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => writeCartStorage(cart), [cart]);
 
+  // Initialize URL hash & history state on mount, and listen for browser back/forward/hash changes
   useEffect(() => {
-    const syncAdminLocation = () => {
-      if (isAdminLocation()) {
-        setRoute({ page: 'admin', tab: 'overview' });
+    const initialRoute = readCurrentLocationRoute();
+    const canonicalHash = routeToHash(initialRoute);
+    const existingIdx = readHistoryNavIdx();
+    const idx = existingIdx ?? 0;
+
+    routeRef.current = initialRoute;
+    historyIdxRef.current = idx;
+    setRoute(initialRoute);
+    setCanGoBack(idx > 0);
+
+    try {
+      const cleanPath = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+      if (cleanPath === '/admin' && !window.location.hash) {
+        window.history.replaceState({ tabsahNavIdx: idx }, '', `/#${canonicalHash.slice(1)}`);
+      } else if (existingIdx === null || !window.location.hash) {
+        window.history.replaceState({ tabsahNavIdx: idx }, '', canonicalHash);
+      }
+    } catch {
+      // Ignore history restrictions in sandboxed environments.
+    }
+
+    const syncFromLocation = () => {
+      const nextRoute = readCurrentLocationRoute();
+      const nextHash = routeToHash(nextRoute);
+      const prevHash = routeToHash(routeRef.current);
+      const stateIdx = readHistoryNavIdx();
+
+      if (stateIdx !== null) {
+        historyIdxRef.current = stateIdx;
+        setCanGoBack(stateIdx > 0);
+      } else if (nextHash !== prevHash) {
+        const bumpedIdx = historyIdxRef.current + 1;
+        historyIdxRef.current = bumpedIdx;
+        setCanGoBack(true);
+        try {
+          window.history.replaceState({ tabsahNavIdx: bumpedIdx }, '', window.location.hash || nextHash);
+        } catch {
+          // Ignore history restrictions in sandboxed environments.
+        }
+      }
+
+      if (nextHash !== prevHash) {
+        routeRef.current = nextRoute;
+        setRoute(nextRoute);
+        window.scrollTo({ top: 0, behavior: 'auto' });
       }
     };
-    window.addEventListener('hashchange', syncAdminLocation);
-    window.addEventListener('popstate', syncAdminLocation);
+
+    window.addEventListener('hashchange', syncFromLocation);
+    window.addEventListener('popstate', syncFromLocation);
     return () => {
-      window.removeEventListener('hashchange', syncAdminLocation);
-      window.removeEventListener('popstate', syncAdminLocation);
+      window.removeEventListener('hashchange', syncFromLocation);
+      window.removeEventListener('popstate', syncFromLocation);
     };
   }, []);
 
@@ -292,16 +337,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const navigate = useCallback((next: RouteView) => {
-    setRoute(next);
-    if (next.page !== 'admin' && isAdminLocation()) {
-      try {
-        window.history.replaceState(null, '', '/');
-      } catch {
-        // Ignore history restrictions in sandboxed environments.
-      }
+    const nextHash = routeToHash(next);
+    const currentHash = routeToHash(routeRef.current);
+
+    if (nextHash === currentHash && window.location.hash === nextHash) {
+      routeRef.current = next;
+      setRoute(next);
+      return;
     }
+
+    const nextIdx = historyIdxRef.current + 1;
+    historyIdxRef.current = nextIdx;
+    routeRef.current = next;
+    setCanGoBack(true);
+    setRoute(next);
+
+    try {
+      window.history.pushState({ tabsahNavIdx: nextIdx }, '', nextHash);
+    } catch {
+      window.location.hash = nextHash;
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  const goBack = useCallback(
+    (fallback: RouteView) => {
+      if (historyIdxRef.current > 0) {
+        window.history.back();
+        return;
+      }
+      navigate(fallback);
+    },
+    [navigate]
+  );
 
   // Load upfront options from store_settings (gracefully falling back to [50, 75, 100])
   const loadStoreSettings = useCallback(async () => {
@@ -1408,6 +1477,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const value: StoreContextValue = {
     route,
     navigate,
+    goBack,
+    canGoBack,
     categories,
     products,
     adminProducts,

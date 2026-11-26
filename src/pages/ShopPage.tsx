@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { ProductCard } from '../components/ProductCard';
+import { BackButton } from '../components/BackButton';
 
 interface ShopPageProps {
   initialCategorySlug?: string;
@@ -72,19 +73,23 @@ export const ShopPage: React.FC<ShopPageProps> = ({
     <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-8 lg:px-12 py-12 sm:py-16">
       {/* Calm Editorial Page Header */}
       <div className="pb-10 mb-10 border-b border-[#F0D9E3]">
-        <nav className="text-[13px] tracking-[0.16em] uppercase text-[#666666] mb-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate({ page: 'home' })}
-            className="hover:text-[#E8005F] cursor-pointer"
-          >
-            Home
-          </button>
-          <span aria-hidden="true">/</span>
-          <span className="text-[#52005C] font-medium">
-            {activeCategoryObj ? activeCategoryObj.name : 'Catalogue'}
-          </span>
-        </nav>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <nav className="text-[13px] tracking-[0.16em] uppercase text-[#666666] flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate({ page: 'home' })}
+              className="hover:text-[#E8005F] cursor-pointer"
+            >
+              Home
+            </button>
+            <span aria-hidden="true">/</span>
+            <span className="text-[#52005C] font-medium">
+              {activeCategoryObj ? activeCategoryObj.name : 'Catalogue'}
+            </span>
+          </nav>
+
+          <BackButton fallback={{ page: 'home' }} />
+        </div>
 
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="max-w-2xl">
@@ -154,7 +159,13 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           {searchText && (
             <button
               type="button"
-              onClick={() => setSearchText('')}
+              onClick={() => {
+                setSearchText('');
+                navigate({
+                  page: 'shop',
+                  categorySlug: selectedCategory === 'all' ? undefined : selectedCategory,
+                });
+              }}
               aria-label="Clear search filter"
               className="absolute right-0 top-1/2 -translate-y-1/2 text-[#666666] hover:text-[#E8005F] cursor-pointer"
             >
@@ -235,7 +246,8 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             onClick={() => {
               setSearchText('');
               setOpenOnly(false);
-              handleCategoryChange('all');
+              setSelectedCategory('all');
+              navigate({ page: 'shop' });
             }}
             className="mt-6 px-6 py-3 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold cursor-pointer"
           >
