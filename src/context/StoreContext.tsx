@@ -35,6 +35,7 @@ export interface CartItem {
   productId: string;
   variantLabel?: string;
   quantity: number;
+  upfrontPercentage?: number;
 }
 
 export interface CheckoutPayload {
@@ -84,13 +85,21 @@ interface StoreContextValue {
     unitPriceNaira: number;
     quantity: number;
     lineTotal: number;
+    upfrontPercentage: number;
+    payNowNaira: number;
+    balanceNaira: number;
   }[];
   cartSubtotal: number;
   toast: ToastMessage | null;
   showToast: (text: string) => void;
 
   // Cart actions
-  addToCart: (productId: string, quantity?: number, variantLabel?: string) => void;
+  addToCart: (
+    productId: string,
+    quantity?: number,
+    variantLabel?: string,
+    upfrontPercentage?: number
+  ) => void;
   updateCartQuantity: (productId: string, quantity: number, variantLabel?: string) => void;
   removeFromCart: (productId: string, variantLabel?: string) => void;
   clearCart: () => void;
@@ -599,6 +608,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [hydrateSessionUser, loadPublicProducts, loadStoreSettings]);
 
   const cartDetailedItems = useMemo(() => {
+    const defaultPct = settings.upfrontOptions.includes(50)
+      ? 50
+      : settings.defaultUpfrontPercentage;
+
     return cart
       .map((item) => {
         const product = products.find((p) => p.id === item.productId);
@@ -619,6 +632,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const cartKey = resolvedVariantLabel
           ? `${product.id}::${resolvedVariantLabel}`
           : product.id;
+        const lineTotal = unitPriceNaira * item.quantity;
+        const upfrontPercentage =
+          item.upfrontPercentage !== undefined &&
+          settings.upfrontOptions.includes(item.upfrontPercentage)
+            ? item.upfrontPercentage
+            : defaultPct;
+        const { deposit: payNowNaira, balance: balanceNaira } = calculateDepositAndBalance(
+          lineTotal,
+          upfrontPercentage
+        );
 
         return {
           cartKey,
@@ -626,7 +649,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           variantLabel: resolvedVariantLabel,
           unitPriceNaira,
           quantity: item.quantity,
-          lineTotal: unitPriceNaira * item.quantity,
+          lineTotal,
+          upfrontPercentage,
+          payNowNaira,
+          balanceNaira,
         };
       })
       .filter(
@@ -639,9 +665,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           unitPriceNaira: number;
           quantity: number;
           lineTotal: number;
+          upfrontPercentage: number;
+          payNowNaira: number;
+          balanceNaira: number;
         } => entry !== null
       );
-  }, [cart, products]);
+  }, [cart, products, settings.defaultUpfrontPercentage, settings.upfrontOptions]);
 
   const cartCount = useMemo(
     () => cartDetailedItems.reduce((sum, item) => sum + item.quantity, 0),
@@ -653,7 +682,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [cartDetailedItems]
   );
 
-  const addToCart = (productId: string, quantity = 1, variantLabel?: string) => {
+  const addToCart = (
+    productId: string,
+    quantity = 1,
+    variantLabel?: string,
+    upfrontPercentage?: number
+  ) => {
     const product = products.find((p) => p.id === productId);
     if (!product || !product.isPreOrderOpen) {
       showToast('This item is currently closed for pre-order.');
@@ -667,6 +701,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       resolvedVariantLabel = matched?.label;
     }
 
+    const defaultPct = settings.upfrontOptions.includes(50)
+      ? 50
+      : settings.defaultUpfrontPercentage;
+    const resolvedUpfrontPct =
+      upfrontPercentage !== undefined && settings.upfrontOptions.includes(upfrontPercentage)
+        ? upfrontPercentage
+        : defaultPct;
+
     setCart((prev) => {
       const existing = prev.find(
         (entry) =>
@@ -677,11 +719,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return prev.map((entry) =>
           entry.productId === productId &&
           (entry.variantLabel ?? undefined) === resolvedVariantLabel
-            ? { ...entry, quantity: entry.quantity + quantity }
+            ? {
+                ...entry,
+                quantity: entry.quantity + quantity,
+                upfrontPercentage: resolvedUpfrontPct,
+              }
             : entry
         );
       }
-      return [...prev, { productId, variantLabel: resolvedVariantLabel, quantity }];
+      return [
+        ...prev,
+        {
+          productId,
+          variantLabel: resolvedVariantLabel,
+          quantity,
+          upfrontPercentage: resolvedUpfrontPct,
+        },
+      ];
     });
 
     showToast(

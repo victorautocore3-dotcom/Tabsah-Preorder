@@ -23,11 +23,19 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
 
   const product = products.find((p) => p.slug === productSlug) ?? null;
   const lowestVariant = product ? getLowestVariant(product) : undefined;
+  const upfrontOptions =
+    settings.upfrontOptions && settings.upfrontOptions.length > 0
+      ? settings.upfrontOptions
+      : [50, 75, 100];
+  const defaultUpfrontPct = upfrontOptions.includes(50)
+    ? 50
+    : settings.defaultUpfrontPercentage;
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariantLabel, setSelectedVariantLabel] = useState<string>(
     lowestVariant?.label ?? ''
   );
+  const [selectedUpfrontPct, setSelectedUpfrontPct] = useState<number>(defaultUpfrontPct);
 
   useEffect(() => {
     if (!product) return;
@@ -36,7 +44,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
     setJustAdded(false);
     const nextLowest = getLowestVariant(product);
     setSelectedVariantLabel(nextLowest?.label ?? '');
-  }, [product?.id]);
+    setSelectedUpfrontPct(defaultUpfrontPct);
+  }, [product?.id, defaultUpfrontPct]);
+
+  useEffect(() => {
+    if (!upfrontOptions.includes(selectedUpfrontPct)) {
+      setSelectedUpfrontPct(defaultUpfrontPct);
+    }
+  }, [defaultUpfrontPct, selectedUpfrontPct, upfrontOptions]);
 
   if (productsLoading) {
     return (
@@ -85,13 +100,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
     product.variants?.find((v) => v.label === selectedVariantLabel) ?? lowestVariant;
   const activeUnitPrice = selectedVariant ? selectedVariant.priceNaira : product.priceNaira;
 
-  const minUpfrontPct = Math.min(...settings.upfrontOptions);
   const lineFullTotal = activeUnitPrice * quantity;
-  const { deposit, balance } = calculateDepositAndBalance(lineFullTotal, minUpfrontPct);
+  const { deposit, balance } = calculateDepositAndBalance(lineFullTotal, selectedUpfrontPct);
 
   const handleAddToCart = () => {
     if (!product.isPreOrderOpen) return;
-    addToCart(product.id, quantity, selectedVariant?.label);
+    addToCart(product.id, quantity, selectedVariant?.label, selectedUpfrontPct);
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 2600);
   };
@@ -253,6 +267,64 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
             </div>
           )}
 
+          {/* Choose How to Pay Selector */}
+          <div className="mt-6 space-y-3">
+            <p className="text-[13px] tracking-[0.14em] uppercase font-semibold text-[#52005C]">
+              Choose how to pay
+            </p>
+            <div
+              role="radiogroup"
+              aria-label="Choose how to pay"
+              className="space-y-2.5"
+            >
+              {upfrontOptions.map((pct) => {
+                const isSelected = selectedUpfrontPct === pct;
+                const optionSplit = calculateDepositAndBalance(activeUnitPrice, pct);
+                const isFull = pct === 100;
+                const heading = isFull ? 'Pay in full' : `Pay ${pct}% now`;
+                const breakdown = isFull
+                  ? `${formatNaira(optionSplit.deposit)} now, nothing later`
+                  : `${formatNaira(optionSplit.deposit)} now, ${formatNaira(optionSplit.balance)} before delivery`;
+
+                return (
+                  <button
+                    key={pct}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => setSelectedUpfrontPct(pct)}
+                    className={`w-full px-4 py-3.5 border-2 text-left transition-colors cursor-pointer flex items-start justify-between gap-3 ${
+                      isSelected
+                        ? 'border-[#E8005F] bg-[#FFF1F6]'
+                        : 'border-[#F0D9E3] bg-white hover:border-[#52005C]'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <span
+                        className={`block text-[13px] tracking-[0.11em] uppercase font-semibold ${
+                          isSelected ? 'text-[#E8005F]' : 'text-[#52005C]'
+                        }`}
+                      >
+                        {heading}
+                      </span>
+                      <span className="mt-1 block text-base text-[#222222] tabular-nums leading-snug">
+                        {breakdown}
+                      </span>
+                    </div>
+                    <span
+                      aria-hidden="true"
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                        isSelected ? 'border-[#E8005F] bg-[#E8005F]' : 'border-[#C9B3BF] bg-white'
+                      }`}
+                    >
+                      {isSelected && <span className="w-2 h-2 rounded-full bg-white" />}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Price & Calm Hairline Deposit Breakdown */}
           <div className="mt-7 pt-6 pb-6 border-t border-b border-[#F0D9E3] space-y-4">
             <div className="flex items-baseline justify-between gap-4">
@@ -266,7 +338,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
 
             <div className="flex items-baseline justify-between gap-4 text-base">
               <span className="text-[#555555]">
-                Deposit from ({minUpfrontPct}%)
+                {selectedUpfrontPct === 100
+                  ? 'Pay now (100% in full)'
+                  : `Pay now (${selectedUpfrontPct}% upfront)`}
+                {quantity > 1 ? ` · ${quantity} items` : ''}
               </span>
               <span className="text-lg font-semibold text-[#E8005F] tabular-nums">
                 {formatNaira(deposit)}
@@ -274,14 +349,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
             </div>
 
             <div className="flex items-baseline justify-between gap-4 text-base">
-              <span className="text-[#555555]">Balance due before delivery (at {minUpfrontPct}%)</span>
+              <span className="text-[#555555]">Balance due before delivery</span>
               <span className="text-lg font-semibold text-[#52005C] tabular-nums">
-                {formatNaira(balance)}
+                {balance === 0 ? `${formatNaira(0)} (nothing later)` : formatNaira(balance)}
               </span>
             </div>
 
             <p className="text-sm text-[#555555]">
-              Pay 50%, 75%, or 100% (pay in full) upfront at checkout.
+              Your payment choice is saved to your bag and can still be changed at checkout.
             </p>
 
             <div className="flex items-baseline justify-between gap-4 text-base pt-2 border-t border-[#F3E7EC]">
@@ -302,8 +377,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productSlu
               <strong className="font-semibold text-[#222222]">
                 {formatArrivalDate(product.expectedArrivalDate)}
               </strong>
-              . Choose to pay 50%, 75%, or 100% upfront at checkout to secure your item in this
-              batch. Any remaining balance is due before delivery once stock arrives in Lagos.
+              . Choose to pay 50%, 75%, or 100% upfront right here (and adjust anytime at checkout)
+              to secure your item in this batch. Any remaining balance is due before delivery once
+              stock arrives in Lagos.
             </p>
           </div>
 

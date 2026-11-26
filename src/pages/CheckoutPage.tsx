@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, Lock, ShieldCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import {
@@ -25,9 +25,14 @@ export const CheckoutPage: React.FC = () => {
   const [email, setEmail] = useState(currentCustomer?.email ?? '');
   const [deliveryZoneId, setDeliveryZoneId] = useState(settings.deliveryFees[0]?.id ?? 'lagos-island');
   const [deliveryAddress, setDeliveryAddress] = useState(currentCustomer?.deliveryAddress ?? '');
+  const firstCartUpfrontPct = cartDetailedItems[0]?.upfrontPercentage;
+  const fallbackUpfrontPct = settings.upfrontOptions.includes(50)
+    ? 50
+    : settings.defaultUpfrontPercentage;
   const [upfrontPercentage, setUpfrontPercentage] = useState<number>(
-    settings.defaultUpfrontPercentage
+    firstCartUpfrontPct ?? fallbackUpfrontPct
   );
+  const hasUserChangedUpfrontRef = useRef(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -43,10 +48,18 @@ export const CheckoutPage: React.FC = () => {
   }, [currentCustomer]);
 
   useEffect(() => {
-    if (!settings.upfrontOptions.includes(upfrontPercentage)) {
-      setUpfrontPercentage(settings.defaultUpfrontPercentage);
+    if (
+      !hasUserChangedUpfrontRef.current &&
+      firstCartUpfrontPct !== undefined &&
+      settings.upfrontOptions.includes(firstCartUpfrontPct)
+    ) {
+      setUpfrontPercentage(firstCartUpfrontPct);
+      return;
     }
-  }, [settings.defaultUpfrontPercentage, settings.upfrontOptions, upfrontPercentage]);
+    if (!settings.upfrontOptions.includes(upfrontPercentage)) {
+      setUpfrontPercentage(fallbackUpfrontPct);
+    }
+  }, [fallbackUpfrontPct, firstCartUpfrontPct, settings.upfrontOptions, upfrontPercentage]);
 
   const selectedZone =
     settings.deliveryFees.find((z) => z.id === deliveryZoneId) ?? settings.deliveryFees[0];
@@ -432,7 +445,10 @@ export const CheckoutPage: React.FC = () => {
                       name="upfrontPercentage"
                       value={pct}
                       checked={isSelected}
-                      onChange={() => setUpfrontPercentage(pct)}
+                      onChange={() => {
+                        hasUserChangedUpfrontRef.current = true;
+                        setUpfrontPercentage(pct);
+                      }}
                       className="sr-only"
                     />
                     <div className="flex items-start justify-between gap-2">

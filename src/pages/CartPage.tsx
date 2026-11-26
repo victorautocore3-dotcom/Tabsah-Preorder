@@ -19,8 +19,13 @@ export const CartPage: React.FC = () => {
     settings,
   } = useStore();
 
-  const minUpfrontPct = Math.min(...settings.upfrontOptions);
-  const { deposit, balance } = calculateDepositAndBalance(cartSubtotal, minUpfrontPct);
+  const checkoutDefaultPct =
+    cartDetailedItems[0]?.upfrontPercentage ??
+    (settings.upfrontOptions.includes(50) ? 50 : settings.defaultUpfrontPercentage);
+  const hasMixedUpfrontChoices = cartDetailedItems.some(
+    (item) => item.upfrontPercentage !== checkoutDefaultPct
+  );
+  const { deposit, balance } = calculateDepositAndBalance(cartSubtotal, checkoutDefaultPct);
 
   if (cartDetailedItems.length === 0) {
     return (
@@ -37,7 +42,7 @@ export const CartPage: React.FC = () => {
         </h1>
         <p className="mt-4 text-base text-[#555555] max-w-md mx-auto leading-relaxed">
           Explore our November and December 2026 batches and choose to pay 50%, 75%, or 100%
-          upfront at checkout.
+          upfront on each product page or at checkout.
         </p>
         <button
           type="button"
@@ -65,7 +70,8 @@ export const CartPage: React.FC = () => {
           Your Pre-Order Cart
         </h1>
         <p className="mt-2 text-base text-[#555555]">
-          Review your items and full total. Choose to pay 50%, 75%, or 100% upfront at checkout.
+          Review your items, payment choices, and full total. You can adjust your upfront option at
+          checkout.
         </p>
       </div>
 
@@ -73,7 +79,17 @@ export const CartPage: React.FC = () => {
         {/* Cart Items */}
         <div className="lg:col-span-7 min-w-0 divide-y divide-[#EFE5EA] border-t border-b border-[#EFE5EA]">
           {cartDetailedItems.map(
-            ({ cartKey, product, variantLabel, unitPriceNaira, quantity, lineTotal }) => (
+            ({
+              cartKey,
+              product,
+              variantLabel,
+              unitPriceNaira,
+              quantity,
+              lineTotal,
+              upfrontPercentage,
+              payNowNaira,
+              balanceNaira,
+            }) => (
               <div key={cartKey} className="py-6 flex flex-col sm:flex-row gap-6">
                 <button
                   type="button"
@@ -110,6 +126,18 @@ export const CartPage: React.FC = () => {
                       <p className="mt-1.5 text-sm text-[#666666]">
                         Expected arrival: {formatArrivalDate(product.expectedArrivalDate)}
                       </p>
+                      <div className="mt-2.5 bg-[#FFF1F6] border border-[#F0D9E3] px-3 py-2 text-sm space-y-0.5">
+                        <p className="font-semibold text-[#E8005F]">
+                          {upfrontPercentage === 100
+                            ? 'Chosen option: Pay in full (100%)'
+                            : `Chosen option: Pay ${upfrontPercentage}% now`}
+                        </p>
+                        <p className="text-[#222222] tabular-nums">
+                          {balanceNaira === 0
+                            ? `${formatNaira(payNowNaira)} now · ₦0 balance (nothing later)`
+                            : `${formatNaira(payNowNaira)} now · ${formatNaira(balanceNaira)} balance before delivery`}
+                        </p>
+                      </div>
                     </div>
 
                     <button
@@ -193,9 +221,15 @@ export const CartPage: React.FC = () => {
             <div className="py-4 flex items-baseline justify-between gap-4">
               <div>
                 <p className="text-base font-semibold text-[#E8005F]">
-                  Deposit From ({minUpfrontPct}%)
+                  {checkoutDefaultPct === 100
+                    ? 'Pay Now (100% in full)'
+                    : `Pay Now (${checkoutDefaultPct}% upfront)`}
                 </p>
-                <p className="text-sm text-[#555555]">Pay 50%, 75%, or 100% upfront at checkout</p>
+                <p className="text-sm text-[#555555]">
+                  {hasMixedUpfrontChoices
+                    ? `Checkout opens with ${checkoutDefaultPct}% pre-selected (changeable there)`
+                    : 'Pre-selected from your bag (changeable at checkout)'}
+                </p>
               </div>
               <span className="font-display text-3xl font-semibold text-[#E8005F] tabular-nums">
                 {formatNaira(deposit)}
@@ -205,19 +239,21 @@ export const CartPage: React.FC = () => {
             <div className="py-4 flex items-baseline justify-between gap-4">
               <div>
                 <p className="text-base font-semibold text-[#52005C]">
-                  Remaining Balance (at {minUpfrontPct}%)
+                  Remaining Balance
                 </p>
-                <p className="text-sm text-[#555555]">Settled once stock arrives in Lagos</p>
+                <p className="text-sm text-[#555555]">
+                  {balance === 0 ? 'Nothing left to pay later' : 'Settled once stock arrives in Lagos'}
+                </p>
               </div>
               <span className="text-xl font-semibold text-[#52005C] tabular-nums">
-                {formatNaira(balance)}
+                {balance === 0 ? `${formatNaira(0)} (nothing later)` : formatNaira(balance)}
               </span>
             </div>
           </div>
 
           <p className="mt-5 text-base text-[#4A4A4A] leading-relaxed">
-            Delivery fee and your upfront payment choice (50%, 75%, or 100% pay in full) are
-            selected at checkout and apply across the full order total. Nothing is delivered until
+            Delivery fee is added at checkout, where your chosen upfront percentage applies across
+            the full order total and can still be changed before paying. Nothing is delivered until
             the full amount is paid.
           </p>
 
