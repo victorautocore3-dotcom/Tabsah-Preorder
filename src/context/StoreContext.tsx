@@ -44,6 +44,9 @@ export interface CheckoutPayload {
   email: string;
   deliveryZoneId: string;
   deliveryAddress: string;
+  deliveryCity: string;
+  deliveryState: string;
+  deliveryNote: string;
   upfrontPercentage: number;
 }
 
@@ -1017,30 +1020,48 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       : settings.defaultUpfrontPercentage;
     const { deposit, balance } = calculateDepositAndBalance(fullTotalNaira, appliedUpfrontPct);
 
+    const cleanDeliveryAddress = payload.deliveryAddress.trim();
+    const cleanDeliveryCity = payload.deliveryCity.trim();
+    const cleanDeliveryState = payload.deliveryState.trim();
+    const cleanDeliveryNote = payload.deliveryNote.trim();
+
+    if (!cleanDeliveryAddress || !cleanDeliveryCity || !cleanDeliveryState) {
+      const missing: string[] = [];
+      if (!cleanDeliveryAddress) missing.push('Full Delivery Address');
+      if (!cleanDeliveryCity) missing.push('City / Town');
+      if (!cleanDeliveryState) missing.push('State');
+      return {
+        ok: false,
+        error: `Please enter the required delivery details: ${missing.join(', ')}.`,
+      };
+    }
+
     const orderNumber = `TB-2026-${Math.floor(1000 + Math.random() * 9000)}`;
     const statusText: OrderStatus =
       balance === 0 ? 'Fully paid' : 'Deposit paid, waiting for stock';
 
-    const { data: insertedOrderRow, error: orderError } = await insertRowResilient<
-      Record<string, unknown>
-    >('orders', {
-      order_number: orderNumber,
-      customer_id: currentCustomer.id,
-      customer_name: payload.name.trim(),
-      phone: payload.whatsApp.trim(),
-      email: cleanEmail,
-      items: orderItemsJsonb,
-      delivery_fee: deliveryFeeNaira,
-      total: fullTotalNaira,
-      upfront_percent: appliedUpfrontPct,
-      deposit_paid: deposit,
-      balance_due: balance,
-      status: statusText,
-      delivery_address: payload.deliveryAddress.trim(),
-      delivery_zone_label: zone ? zone.label : 'Standard Delivery',
-      delivery_zone_id: zone ? zone.id : 'lagos-mainland',
-      expected_arrival_date: latestArrival,
-    });
+    const { data: insertedOrderRow, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        order_number: orderNumber,
+        customer_id: currentCustomer.id,
+        customer_name: payload.name.trim(),
+        phone: payload.whatsApp.trim(),
+        email: cleanEmail,
+        items: orderItemsJsonb,
+        delivery_fee: deliveryFeeNaira,
+        total: fullTotalNaira,
+        upfront_percent: appliedUpfrontPct,
+        deposit_paid: deposit,
+        balance_due: balance,
+        status: statusText,
+        delivery_address: cleanDeliveryAddress,
+        delivery_city: cleanDeliveryCity,
+        delivery_state: cleanDeliveryState,
+        delivery_note: cleanDeliveryNote || null,
+      })
+      .select('*')
+      .single();
 
     if (orderError || !insertedOrderRow) {
       return {
@@ -1049,9 +1070,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
     }
 
-    const mappedOrder = mapOrderRow(insertedOrderRow);
-    // Keep delivery details visible on confirmation receipt even if table omits optional address columns
-    mappedOrder.deliveryAddress = payload.deliveryAddress.trim();
+    const mappedOrder = mapOrderRow(insertedOrderRow as Record<string, unknown>);
     mappedOrder.deliveryZoneLabel = zone ? zone.label : 'Standard Delivery';
     mappedOrder.expectedArrivalDate = latestArrival;
 

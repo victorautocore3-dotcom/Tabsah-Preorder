@@ -1613,11 +1613,40 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
               </button>
             </div>
 
-            <div className="text-base space-y-1.5 text-[#4A4A4A]">
-              <p>
-                <strong className="font-medium text-[#222222]">Delivery Address:</strong>{' '}
-                {inspectingOrder.deliveryAddress}
+            <div className="bg-[#FAF7F9] border border-[#F0D9E3] p-4 space-y-1.5">
+              <p className="text-[12px] font-semibold tracking-[0.16em] uppercase text-[#52005C]">
+                Delivery Address
               </p>
+              {inspectingOrder.deliveryAddress ||
+              inspectingOrder.deliveryCity ||
+              inspectingOrder.deliveryState ||
+              inspectingOrder.deliveryNote ? (
+                <div className="text-base text-[#222222] space-y-1">
+                  {inspectingOrder.deliveryAddress && (
+                    <p className="leading-relaxed">{inspectingOrder.deliveryAddress}</p>
+                  )}
+                  {(inspectingOrder.deliveryCity || inspectingOrder.deliveryState) && (
+                    <p className="text-sm font-medium text-[#4A4A4A]">
+                      {[inspectingOrder.deliveryCity, inspectingOrder.deliveryState]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </p>
+                  )}
+                  {inspectingOrder.deliveryNote && (
+                    <p className="text-sm text-[#666666] pt-1 border-t border-[#EFE5EA]">
+                      <strong className="font-medium text-[#222222]">Landmark / Note:</strong>{' '}
+                      {inspectingOrder.deliveryNote}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-[#666666]">
+                  No delivery address saved for this order.
+                </p>
+              )}
+            </div>
+
+            <div className="text-base space-y-1.5 text-[#4A4A4A]">
               <p>
                 <strong className="font-medium text-[#222222]">Upfront Option:</strong>{' '}
                 {inspectingOrder.depositPercentageApplied === 100

@@ -279,10 +279,21 @@ function normalizeOrderItems(rawItems: unknown, fallbackArrival: string): OrderI
 
 export function mapOrderRow(row: Record<string, unknown>): Order {
   const createdAt = String(row.created_at ?? new Date().toISOString()).slice(0, 10);
-  const expectedArrival = String(
-    row.expected_arrival_date ?? row.arrival_date ?? '2026-12-06'
-  ).slice(0, 10);
-  const items = normalizeOrderItems(row.items, expectedArrival);
+  const rawExpectedArrival = row.expected_arrival_date ?? row.arrival_date;
+  const fallbackArrival =
+    typeof rawExpectedArrival === 'string' && rawExpectedArrival.trim()
+      ? rawExpectedArrival.slice(0, 10)
+      : '2026-12-06';
+  const items = normalizeOrderItems(row.items, fallbackArrival);
+  const latestItemArrival = items.reduce(
+    (latest, entry) =>
+      entry.expectedArrivalDate > latest ? entry.expectedArrivalDate : latest,
+    items[0]?.expectedArrivalDate ?? fallbackArrival
+  );
+  const expectedArrival =
+    typeof rawExpectedArrival === 'string' && rawExpectedArrival.trim()
+      ? rawExpectedArrival.slice(0, 10)
+      : latestItemArrival;
   const deliveryFeeNaira = Number(row.delivery_fee ?? row.delivery_fee_naira ?? 0);
   const fullTotalNaira = Number(row.total ?? row.full_total_naira ?? 0);
   const subtotalNaira = Number(
@@ -294,6 +305,15 @@ export function mapOrderRow(row: Record<string, unknown>): Order {
   const depositPaidNaira = Number(row.deposit_paid ?? row.deposit_paid_naira ?? 0);
   const balanceRemainingNaira = Number(row.balance_due ?? row.balance_remaining_naira ?? 0);
 
+  const deliveryAddress =
+    typeof row.delivery_address === 'string' ? row.delivery_address.trim() : '';
+  const deliveryCity =
+    typeof row.delivery_city === 'string' ? row.delivery_city.trim() : '';
+  const deliveryState =
+    typeof row.delivery_state === 'string' ? row.delivery_state.trim() : '';
+  const deliveryNote =
+    typeof row.delivery_note === 'string' ? row.delivery_note.trim() : '';
+
   return {
     id: String(row.id),
     orderNumber: String(row.order_number ?? row.id),
@@ -303,7 +323,10 @@ export function mapOrderRow(row: Record<string, unknown>): Order {
     customerWhatsApp: String(row.phone ?? row.customer_phone ?? ''),
     deliveryZoneId: String(row.delivery_zone_id ?? 'lagos-mainland'),
     deliveryZoneLabel: String(row.delivery_zone_label ?? 'Standard Delivery'),
-    deliveryAddress: String(row.delivery_address ?? 'Provided at checkout'),
+    deliveryAddress,
+    deliveryCity,
+    deliveryState,
+    deliveryNote,
     createdAt,
     expectedArrivalDate: expectedArrival,
     items,

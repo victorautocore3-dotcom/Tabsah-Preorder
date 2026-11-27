@@ -25,6 +25,9 @@ export const CheckoutPage: React.FC = () => {
   const [email, setEmail] = useState(currentCustomer?.email ?? '');
   const [deliveryZoneId, setDeliveryZoneId] = useState(settings.deliveryFees[0]?.id ?? 'lagos-island');
   const [deliveryAddress, setDeliveryAddress] = useState(currentCustomer?.deliveryAddress ?? '');
+  const [deliveryCity, setDeliveryCity] = useState('');
+  const [deliveryState, setDeliveryState] = useState('');
+  const [deliveryNote, setDeliveryNote] = useState('');
   const firstCartUpfrontPct = cartDetailedItems[0]?.upfrontPercentage;
   const fallbackUpfrontPct = settings.upfrontOptions.includes(50)
     ? 50
@@ -81,8 +84,24 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
 
-    if (!name.trim() || !whatsApp.trim() || !email.trim() || !deliveryAddress.trim()) {
-      setFormError('Please fill in your name, WhatsApp number, email, and delivery address.');
+    const missingFields: string[] = [];
+    if (!name.trim()) missingFields.push('Full Name');
+    if (!whatsApp.trim()) missingFields.push('WhatsApp Phone Number');
+    if (!email.trim()) missingFields.push('Email Address');
+    if (!deliveryAddress.trim()) missingFields.push('Full Delivery Address');
+    if (!deliveryCity.trim()) missingFields.push('City / Town');
+    if (!deliveryState.trim()) missingFields.push('State');
+
+    if (missingFields.length > 0) {
+      setFormError(
+        missingFields.length === 1
+          ? `Please enter your ${missingFields[0]} before placing your order.`
+          : `Please fill in the following required fields: ${missingFields.join(', ')}.`
+      );
+      return;
+    }
+    if (!email.trim().includes('@')) {
+      setFormError('Please enter a valid Email Address.');
       return;
     }
     if (!acceptedTerms) {
@@ -98,6 +117,9 @@ export const CheckoutPage: React.FC = () => {
         email,
         deliveryZoneId,
         deliveryAddress,
+        deliveryCity,
+        deliveryState,
+        deliveryNote,
         upfrontPercentage,
       });
 
@@ -183,8 +205,20 @@ export const CheckoutPage: React.FC = () => {
             </p>
             <p>
               <strong className="text-[#222222]">Delivery Address:</strong>{' '}
-              {completedOrder.deliveryAddress}
+              {[
+                completedOrder.deliveryAddress,
+                completedOrder.deliveryCity,
+                completedOrder.deliveryState,
+              ]
+                .filter(Boolean)
+                .join(', ')}
             </p>
+            {completedOrder.deliveryNote && (
+              <p>
+                <strong className="text-[#222222]">Landmark / Delivery Note:</strong>{' '}
+                {completedOrder.deliveryNote}
+              </p>
+            )}
           </div>
 
           <div className="mt-9 flex flex-wrap gap-4">
@@ -302,7 +336,11 @@ export const CheckoutPage: React.FC = () => {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start"
+      >
         {/* Left Form */}
         <div className="lg:col-span-7 min-w-0 space-y-10">
           <section className="space-y-6 pb-8 border-b border-[#EFE5EA]">
@@ -403,8 +441,63 @@ export const CheckoutPage: React.FC = () => {
                 rows={3}
                 value={deliveryAddress}
                 onChange={(e) => setDeliveryAddress(e.target.value)}
-                placeholder="House number, street name, estate or landmark, city, and state"
+                placeholder="House number, street name, estate or area"
                 className="w-full p-3.5 border border-[#F0D9E3] bg-white text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label
+                  htmlFor="co-city"
+                  className="block text-[13px] tracking-[0.11em] uppercase font-medium text-[#4A4A4A] mb-2"
+                >
+                  City / Town
+                </label>
+                <input
+                  id="co-city"
+                  type="text"
+                  required
+                  value={deliveryCity}
+                  onChange={(e) => setDeliveryCity(e.target.value)}
+                  placeholder="e.g. Ikeja or Lekki"
+                  className="w-full h-11 px-3.5 border border-[#F0D9E3] bg-white text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="co-state"
+                  className="block text-[13px] tracking-[0.11em] uppercase font-medium text-[#4A4A4A] mb-2"
+                >
+                  State
+                </label>
+                <input
+                  id="co-state"
+                  type="text"
+                  required
+                  value={deliveryState}
+                  onChange={(e) => setDeliveryState(e.target.value)}
+                  placeholder="e.g. Lagos"
+                  className="w-full h-11 px-3.5 border border-[#F0D9E3] bg-white text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="co-note"
+                className="block text-[13px] tracking-[0.11em] uppercase font-medium text-[#4A4A4A] mb-2"
+              >
+                Landmark or Delivery Note (Optional)
+              </label>
+              <input
+                id="co-note"
+                type="text"
+                value={deliveryNote}
+                onChange={(e) => setDeliveryNote(e.target.value)}
+                placeholder="e.g. Opposite Total filling station, call at the gate"
+                className="w-full h-11 px-3.5 border border-[#F0D9E3] bg-white text-base text-[#222222] focus:border-[#E8005F] focus:outline-none"
               />
             </div>
           </section>

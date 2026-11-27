@@ -444,8 +444,38 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                     <p className="text-[13px] font-medium tracking-[0.16em] uppercase text-[#52005C] mb-2">
                       Delivery Address
                     </p>
-                    <p className="leading-relaxed">{selectedOrder.deliveryAddress}</p>
-                    <p className="text-sm text-[#666666] mt-1.5">
+                    {selectedOrder.deliveryAddress ||
+                    selectedOrder.deliveryCity ||
+                    selectedOrder.deliveryState ||
+                    selectedOrder.deliveryNote ? (
+                      <div className="space-y-1">
+                        {selectedOrder.deliveryAddress && (
+                          <p className="leading-relaxed text-[#222222]">
+                            {selectedOrder.deliveryAddress}
+                          </p>
+                        )}
+                        {(selectedOrder.deliveryCity || selectedOrder.deliveryState) && (
+                          <p className="text-sm font-medium text-[#4A4A4A]">
+                            {[selectedOrder.deliveryCity, selectedOrder.deliveryState]
+                              .filter(Boolean)
+                              .join(', ')}
+                          </p>
+                        )}
+                        {selectedOrder.deliveryNote && (
+                          <p className="text-sm text-[#666666] pt-1">
+                            <strong className="font-medium text-[#222222]">
+                              Landmark / Note:
+                            </strong>{' '}
+                            {selectedOrder.deliveryNote}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-[#666666]">
+                        No delivery address saved for this order.
+                      </p>
+                    )}
+                    <p className="text-sm text-[#666666] mt-2">
                       {selectedOrder.deliveryZoneLabel}
                     </p>
                   </div>

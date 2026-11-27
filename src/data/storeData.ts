@@ -110,6 +110,9 @@ export interface Order {
   deliveryZoneId: string;
   deliveryZoneLabel: string;
   deliveryAddress: string;
+  deliveryCity: string;
+  deliveryState: string;
+  deliveryNote: string;
   createdAt: string; // ISO date string YYYY-MM-DD
   expectedArrivalDate: string; // Latest arrival date among items
   items: OrderItem[];
