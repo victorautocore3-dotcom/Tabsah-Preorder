@@ -49,7 +49,7 @@ export const STORE_CONFIG: StoreConfig = {
   upfrontOptions: [50, 75, 100],
   defaultUpfrontPercentage: 50,
   depositPercentage: 50,
-  storeWhatsAppNumber: '+2348094128830',
+  storeWhatsAppNumber: '+2349020059393',
   storeEmail: 'toluwalopeesther80@gmail.com',
   storeAddress: 'House 91, Abuja Estate, Aleke, Ikorodu, Lagos State',
   storeInstagramHandle: '@tabsahs_holdings',
