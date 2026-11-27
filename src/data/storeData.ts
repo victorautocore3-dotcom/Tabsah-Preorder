@@ -45,6 +45,7 @@ import { NIGHTIE_HEART_PYJAMA_04 } from '../assets/images/nightieHeartPyjama04';
 import { NIGHTIE_HEART_PYJAMA_05 } from '../assets/images/nightieHeartPyjama05';
 
 export type OrderStatus =
+  | 'Awaiting payment'
   | 'Deposit paid, waiting for stock'
   | 'Balance due'
   | 'Fully paid'

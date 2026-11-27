@@ -135,8 +135,22 @@ interface StoreContextValue {
   }) => Promise<{ ok: boolean; error?: string }>;
 
   // Checkout & order actions
-  placeOrder: (payload: CheckoutPayload) => Promise<{ ok: boolean; order?: Order; error?: string }>;
-  payOrderBalance: (orderId: string) => Promise<{ ok: boolean; error?: string }>;
+  placeOrder: (payload: CheckoutPayload) => Promise<{
+    ok: boolean;
+    order?: Order;
+    paymentRef?: string;
+    payNowAmount?: number;
+    error?: string;
+  }>;
+  payOrderBalance: (orderId: string) => Promise<{
+    ok: boolean;
+    order?: Order;
+    paymentRef?: string;
+    amount?: number;
+    kind?: 'deposit' | 'balance';
+    error?: string;
+  }>;
+  refreshOrderById: (orderId: string) => Promise<Order | null>;
   lookupOrderByNumber: (orderNumber: string) => Promise<{ ok: boolean; order?: Order; error?: string }>;
 
   // Admin actions
@@ -465,8 +479,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [isAdmin, loadAdminProducts, loadPublicProducts]);
 
   const fetchOrdersAndPaymentsForUser = useCallback(
-    async (userId: string, userIsAdmin: boolean) => {
-      setOrdersLoading(true);
+    async (userId: string, userIsAdmin: boolean, options?: { silent?: boolean }) => {
+      if (!options?.silent) {
+        setOrdersLoading(true);
+      }
       try {
         let ordersQuery = supabase
           .from('orders')
@@ -502,10 +518,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setPayments([]);
         }
       } catch {
-        setOrders([]);
-        setPayments([]);
+        if (!options?.silent) {
+          setOrders([]);
+          setPayments([]);
+        }
       } finally {
-        setOrdersLoading(false);
+        if (!options?.silent) {
+          setOrdersLoading(false);
+        }
       }
     },
     []
@@ -517,7 +537,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setPayments([]);
       return;
     }
-    await fetchOrdersAndPaymentsForUser(currentCustomer.id, isAdmin);
+    await fetchOrdersAndPaymentsForUser(currentCustomer.id, isAdmin, { silent: true });
   }, [currentCustomer, fetchOrdersAndPaymentsForUser, isAdmin]);
 
   const hydrateSessionUser = useCallback(
@@ -1037,8 +1057,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const orderNumber = `TB-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const statusText: OrderStatus =
-      balance === 0 ? 'Fully paid' : 'Deposit paid, waiting for stock';
+    const paymentRef = `TB-FLW-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const { data: insertedOrderRow, error: orderError } = await supabase
       .from('orders')
@@ -1052,9 +1071,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         delivery_fee: deliveryFeeNaira,
         total: fullTotalNaira,
         upfront_percent: appliedUpfrontPct,
-        deposit_paid: deposit,
-        balance_due: balance,
-        status: statusText,
+        deposit_paid: 0,
+        balance_due: fullTotalNaira,
+        status: 'Awaiting payment',
         delivery_address: cleanDeliveryAddress,
         delivery_city: cleanDeliveryCity,
         delivery_state: cleanDeliveryState,
@@ -1074,19 +1093,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     mappedOrder.deliveryZoneLabel = zone ? zone.label : 'Standard Delivery';
     mappedOrder.expectedArrivalDate = latestArrival;
 
-    const paymentRef = `TB-SIM-${Math.floor(100000 + Math.random() * 900000)}`;
     const { error: paymentError } = await insertRowResilient('payments', {
       order_id: mappedOrder.id,
       kind: 'deposit',
       amount: deposit,
       reference: paymentRef,
-      status: 'simulated',
+      tx_ref: paymentRef,
+      provider: 'Flutterwave',
+      status: 'pending',
     });
 
     if (paymentError) {
-      showToast(
-        `Order ${mappedOrder.orderNumber} saved, but payment record note: ${paymentError.message}`
-      );
+      return {
+        ok: false,
+        error: paymentError.message || 'Could not create the pending payment record.',
+      };
     }
 
     // Also keep the customer's delivery address saved in auth metadata for future checkouts
@@ -1094,58 +1115,115 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       data: {
         full_name: payload.name.trim(),
         phone: payload.whatsApp.trim(),
-        delivery_address: payload.deliveryAddress.trim(),
+        delivery_address: cleanDeliveryAddress,
       },
     });
 
     clearCart();
-    await fetchOrdersAndPaymentsForUser(currentCustomer.id, isAdmin);
-    showToast(
-      balance === 0
-        ? `Order ${mappedOrder.orderNumber} recorded. Paid in full.`
-        : `Order ${mappedOrder.orderNumber} recorded. ${appliedUpfrontPct}% upfront payment recorded.`
-    );
-    return { ok: true, order: mappedOrder };
+    await fetchOrdersAndPaymentsForUser(currentCustomer.id, isAdmin, { silent: true });
+    return {
+      ok: true,
+      order: mappedOrder,
+      paymentRef,
+      payNowAmount: deposit,
+    };
   };
 
   const payOrderBalance = async (orderId: string) => {
     if (!currentCustomer) {
-      return { ok: false, error: 'Please sign in to pay your balance.' };
+      return { ok: false, error: 'Please sign in to make a payment.' };
     }
-    const target = orders.find((o) => o.id === orderId);
-    if (!target) return { ok: false, error: 'Order not found.' };
-    if (target.balanceRemainingNaira <= 0) {
+
+    let target = orders.find((o) => o.id === orderId);
+    if (!target) {
+      const { data: fetchedRow } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .maybeSingle();
+      if (fetchedRow) {
+        target = mapOrderRow(fetchedRow as Record<string, unknown>);
+      }
+    }
+
+    if (!target) {
+      return { ok: false, error: 'Order not found.' };
+    }
+
+    const isAwaitingInitialPayment =
+      target.status === 'Awaiting payment' || target.depositPaidNaira <= 0;
+
+    let amountToPay = 0;
+    let kind: 'deposit' | 'balance' = 'balance';
+
+    if (isAwaitingInitialPayment) {
+      const { deposit } = calculateDepositAndBalance(
+        target.fullTotalNaira,
+        target.depositPercentageApplied
+      );
+      amountToPay = deposit;
+      kind = 'deposit';
+    } else if (target.balanceRemainingNaira > 0) {
+      amountToPay = target.balanceRemainingNaira;
+      kind = 'balance';
+    } else {
       return { ok: false, error: 'This order is already fully paid.' };
     }
 
-    const amountPaid = target.balanceRemainingNaira;
-    const { error: updateErr } = await updateRowResilient('orders', orderId, {
-      balance_due: 0,
-      status: 'Fully paid',
-    });
-
-    if (updateErr) {
-      showToast(`Could not update order balance: ${updateErr.message}`);
-      return { ok: false, error: updateErr.message };
+    if (amountToPay <= 0) {
+      return { ok: false, error: 'No payment amount is due for this order.' };
     }
 
-    const paymentRef = `TB-SIM-${Math.floor(100000 + Math.random() * 900000)}`;
+    const paymentRef = `TB-FLW-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const { error: payErr } = await insertRowResilient('payments', {
-      order_id: orderId,
-      kind: 'balance',
-      amount: amountPaid,
+      order_id: target.id,
+      kind,
+      amount: amountToPay,
       reference: paymentRef,
-      status: 'simulated',
+      tx_ref: paymentRef,
+      provider: 'Flutterwave',
+      status: 'pending',
     });
 
     if (payErr) {
-      showToast(`Order marked fully paid, but payment record error: ${payErr.message}`);
-    } else {
-      showToast(`Balance recorded for ${target.orderNumber}. Your order is now ready for dispatch.`);
+      return {
+        ok: false,
+        error: payErr.message || 'Could not create pending payment record.',
+      };
     }
 
-    await fetchOrdersAndPaymentsForUser(currentCustomer.id, isAdmin);
-    return { ok: true };
+    const resolvedOrder: Order = {
+      ...target,
+      customerEmail: target.customerEmail.trim() || currentCustomer.email.trim(),
+      customerName: target.customerName.trim() || currentCustomer.name.trim() || 'Customer',
+      customerWhatsApp: target.customerWhatsApp.trim() || currentCustomer.whatsApp.trim(),
+    };
+
+    return {
+      ok: true,
+      order: resolvedOrder,
+      paymentRef,
+      amount: amountToPay,
+      kind,
+    };
+  };
+
+  const refreshOrderById = async (orderId: string): Promise<Order | null> => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (currentCustomer) {
+      await fetchOrdersAndPaymentsForUser(currentCustomer.id, isAdmin, { silent: true });
+    }
+
+    if (error || !data) {
+      return null;
+    }
+
+    return mapOrderRow(data as Record<string, unknown>);
   };
 
   const lookupOrderByNumber = async (orderNumber: string) => {
@@ -1581,6 +1659,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     updateCustomerDetails,
     placeOrder,
     payOrderBalance,
+    refreshOrderById,
     lookupOrderByNumber,
     refreshCatalogue,
     refreshOrdersAndPayments,

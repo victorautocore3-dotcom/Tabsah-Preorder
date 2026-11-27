@@ -348,19 +348,36 @@ export function mapPaymentRow(
   const linkedOrder = ordersById.get(orderId);
   const kind = String(row.kind ?? 'deposit').toLowerCase();
   const type: PaymentRecord['type'] = kind === 'balance' ? 'Balance' : 'Deposit';
-  const rawStatus = String(row.status ?? 'simulated');
-  const displayStatus = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
+  const rawStatus = String(row.status ?? 'pending').trim().toLowerCase();
+
+  let displayStatus: string;
+  if (rawStatus === 'simulated') {
+    displayStatus = 'Simulated (old test)';
+  } else if (rawStatus === 'pending') {
+    displayStatus = 'Pending';
+  } else if (rawStatus === 'verified' || rawStatus === 'paid' || rawStatus === 'successful') {
+    displayStatus = 'Verified';
+  } else {
+    displayStatus = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
+  }
+
+  const rawProvider =
+    typeof row.provider === 'string' && row.provider.trim()
+      ? row.provider.trim()
+      : rawStatus === 'simulated'
+        ? 'Simulated (old test)'
+        : 'Flutterwave';
 
   return {
     id: String(row.id),
-    reference: String(row.reference ?? row.id),
+    reference: String(row.reference ?? row.tx_ref ?? row.id),
     orderId,
     orderNumber: String(row.order_number ?? linkedOrder?.orderNumber ?? orderId.slice(0, 8)),
     customerName: String(row.customer_name ?? linkedOrder?.customerName ?? 'Customer'),
     type,
     amountNaira: Number(row.amount ?? row.amount_naira ?? 0),
     date: String(row.created_at ?? row.date ?? new Date().toISOString()).slice(0, 10),
-    method: 'Simulated',
+    method: rawProvider,
     status: displayStatus,
   };
 }

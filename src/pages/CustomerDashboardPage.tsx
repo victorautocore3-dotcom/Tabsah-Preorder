@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import {
+  AlertCircle,
   ArrowLeft,
   Calendar,
   Check,
+  Clock,
   CreditCard,
   LogOut,
   MessageCircle,
@@ -12,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import {
+  calculateDepositAndBalance,
   formatArrivalDate,
   formatNaira,
   ORDER_STATUS_STEPS,
@@ -19,6 +22,19 @@ import {
 } from '../data/storeData';
 import { ProductImage } from '../components/ProductImage';
 import { BackButton } from '../components/BackButton';
+import {
+  cleanupFlutterwaveDom,
+  loadFlutterwaveScript,
+  openFlutterwaveCheckout,
+  verifyFlutterwavePayment,
+} from '../services/flutterwave';
+
+interface OrderPaymentNotice {
+  orderId: string;
+  tone: 'verified' | 'pending' | 'awaiting' | 'error';
+  message: string;
+  reference?: string;
+}
 
 interface CustomerDashboardPageProps {
   initialTab?: 'orders' | 'details';
@@ -37,6 +53,8 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
     navigate,
     logoutCustomer,
     payOrderBalance,
+    refreshOrderById,
+    refreshOrdersAndPayments,
     lookupOrderByNumber,
     updateCustomerDetails,
     getWhatsAppUrl,
@@ -49,6 +67,8 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
   const [lookupResult, setLookupResult] = useState<Order | null>(null);
   const [lookupBusy, setLookupBusy] = useState(false);
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+  const [payingLabel, setPayingLabel] = useState('');
+  const [paymentNotice, setPaymentNotice] = useState<OrderPaymentNotice | null>(null);
   const [savingDetails, setSavingDetails] = useState(false);
 
   const [name, setName] = useState(currentCustomer?.name ?? '');
@@ -70,6 +90,9 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
       setWhatsApp(currentCustomer.whatsApp);
       setEmail(currentCustomer.email);
       setDeliveryAddress(currentCustomer.deliveryAddress);
+      void loadFlutterwaveScript().catch(() => {
+        // Preload is best-effort; errors are surfaced when the customer clicks Pay
+      });
     }
   }, [currentCustomer]);
 
@@ -138,11 +161,109 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
   };
 
   const handlePayBalance = async (orderId: string) => {
+    if (payingOrderId) return;
     setPayingOrderId(orderId);
+    setPayingLabel('Preparing Flutterwave...');
+    setPaymentNotice(null);
     try {
-      await payOrderBalance(orderId);
+      const prep = await payOrderBalance(orderId);
+      if (!prep.ok || !prep.order || !prep.paymentRef || prep.amount === undefined) {
+        setPaymentNotice({
+          orderId,
+          tone: 'error',
+          message: prep.error ?? 'Could not initiate Flutterwave payment. Please try again.',
+        });
+        return;
+      }
+
+      const targetOrder = prep.order;
+      const description =
+        prep.kind === 'balance'
+          ? `Balance payment for order ${targetOrder.orderNumber}`
+          : targetOrder.depositPercentageApplied === 100
+            ? `Full payment for order ${targetOrder.orderNumber}`
+            : `Deposit for order ${targetOrder.orderNumber}`;
+
+      setPayingLabel('Opening Flutterwave...');
+      const modalOutcome = await openFlutterwaveCheckout({
+        tx_ref: prep.paymentRef,
+        amount: prep.amount,
+        customer: {
+          email: targetOrder.customerEmail || currentCustomer.email,
+          name: targetOrder.customerName || currentCustomer.name,
+          phone: targetOrder.customerWhatsApp || currentCustomer.whatsApp,
+        },
+        description,
+      });
+
+      if (modalOutcome.status === 'load_error') {
+        setPaymentNotice({
+          orderId,
+          tone: 'error',
+          message: modalOutcome.error,
+          reference: prep.paymentRef,
+        });
+        return;
+      }
+
+      if (modalOutcome.status === 'closed') {
+        setPaymentNotice({
+          orderId,
+          tone: 'awaiting',
+          message:
+            prep.kind === 'balance'
+              ? `Flutterwave checkout closed before completion. Your remaining balance for order ${targetOrder.orderNumber} is still awaiting payment, and you can retry anytime.`
+              : `Flutterwave checkout closed before completion. Order ${targetOrder.orderNumber} is still awaiting payment, and you can retry anytime.`,
+          reference: prep.paymentRef,
+        });
+        return;
+      }
+
+      setPayingLabel('Confirming payment...');
+      const verified = await verifyFlutterwavePayment({
+        transaction_id: modalOutcome.transaction_id,
+        reference: prep.paymentRef,
+      });
+
+      if (verified) {
+        const refreshedOrder = await refreshOrderById(orderId);
+        if (refreshedOrder && lookupResult && lookupResult.id === refreshedOrder.id) {
+          setLookupResult(refreshedOrder);
+        }
+        setSelectedOrderId(orderId);
+        setPaymentNotice({
+          orderId,
+          tone: 'verified',
+          message:
+            prep.kind === 'balance'
+              ? `Payment confirmed via Flutterwave for order ${targetOrder.orderNumber}. Your order receipt has been refreshed from the database.`
+              : `Payment confirmed via Flutterwave for order ${targetOrder.orderNumber}. Your order status has been refreshed from the database.`,
+          reference: prep.paymentRef,
+        });
+        return;
+      }
+
+      await refreshOrdersAndPayments();
+      setSelectedOrderId(orderId);
+      setPaymentNotice({
+        orderId,
+        tone: 'pending',
+        message: 'We are confirming your payment, this can take a few minutes',
+        reference: prep.paymentRef,
+      });
+    } catch (err) {
+      cleanupFlutterwaveDom({ removePreload: true });
+      setPaymentNotice({
+        orderId,
+        tone: 'error',
+        message:
+          err instanceof Error && err.message
+            ? err.message
+            : 'The Flutterwave payment window did not start. Your order is still awaiting payment, and you can try again.',
+      });
     } finally {
       setPayingOrderId(null);
+      setPayingLabel('');
     }
   };
 
@@ -260,21 +381,42 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">
-                    {selectedOrder.balanceRemainingNaira > 0 && (
-                      <button
-                        type="button"
-                        disabled={payingOrderId === selectedOrder.id}
-                        onClick={() => void handlePayBalance(selectedOrder.id)}
-                        className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 max-w-full bg-[#E8005F] hover:bg-[#C4004F] disabled:opacity-60 text-white text-[13px] font-medium tracking-[0.14em] uppercase transition-colors text-center sm:whitespace-nowrap cursor-pointer"
-                      >
-                        <CreditCard className="w-4 h-4 text-white shrink-0" />
-                        <span>
-                          {payingOrderId === selectedOrder.id
-                            ? 'Recording Payment...'
-                            : `Pay Balance (${formatNaira(selectedOrder.balanceRemainingNaira)})`}
-                        </span>
-                      </button>
-                    )}
+                    {(() => {
+                      const isAwaitingInitial =
+                        selectedOrder.status === 'Awaiting payment' ||
+                        selectedOrder.depositPaidNaira <= 0;
+                      const retryUpfrontAmount = calculateDepositAndBalance(
+                        selectedOrder.fullTotalNaira,
+                        selectedOrder.depositPercentageApplied
+                      ).deposit;
+                      const amountDueNow = isAwaitingInitial
+                        ? retryUpfrontAmount
+                        : selectedOrder.balanceRemainingNaira;
+
+                      if (amountDueNow <= 0) return null;
+
+                      const buttonText = isAwaitingInitial
+                        ? selectedOrder.depositPercentageApplied === 100
+                          ? `Pay in Full with Flutterwave (${formatNaira(amountDueNow)})`
+                          : `Pay ${selectedOrder.depositPercentageApplied}% with Flutterwave (${formatNaira(amountDueNow)})`
+                        : `Pay Balance with Flutterwave (${formatNaira(amountDueNow)})`;
+
+                      return (
+                        <button
+                          type="button"
+                          disabled={payingOrderId !== null}
+                          onClick={() => void handlePayBalance(selectedOrder.id)}
+                          className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3.5 max-w-full bg-[#E8005F] hover:bg-[#C4004F] disabled:opacity-60 text-white text-[13px] font-medium tracking-[0.14em] uppercase transition-colors text-center sm:whitespace-nowrap cursor-pointer"
+                        >
+                          <CreditCard className="w-4 h-4 text-white shrink-0" />
+                          <span>
+                            {payingOrderId === selectedOrder.id
+                              ? payingLabel || 'Opening Flutterwave...'
+                              : buttonText}
+                          </span>
+                        </button>
+                      );
+                    })()}
 
                     <a
                       href={getWhatsAppUrl(
@@ -289,6 +431,36 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                     </a>
                   </div>
                 </div>
+
+                {paymentNotice && paymentNotice.orderId === selectedOrder.id && (
+                  <div
+                    role="status"
+                    className={`p-5 border flex items-start gap-3.5 text-base leading-relaxed ${
+                      paymentNotice.tone === 'verified'
+                        ? 'bg-[#FFF1F6] border-[#E8005F] text-[#222222]'
+                        : paymentNotice.tone === 'error'
+                          ? 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]'
+                          : 'bg-[#FAF7F9] border-[#52005C] text-[#222222]'
+                    }`}
+                  >
+                    {paymentNotice.tone === 'verified' ? (
+                      <Check className="w-5 h-5 text-[#E8005F] shrink-0 mt-0.5" />
+                    ) : paymentNotice.tone === 'pending' ? (
+                      <Clock className="w-5 h-5 text-[#52005C] shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-[#E8005F] shrink-0 mt-0.5" />
+                    )}
+                    <div className="space-y-1">
+                      <p className="font-medium">{paymentNotice.message}</p>
+                      {paymentNotice.reference && (
+                        <p className="text-sm text-[#666666]">
+                          Flutterwave Reference:{' '}
+                          <span className="font-mono text-[#222222]">{paymentNotice.reference}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* 5-Stage Order Status Line */}
                 <div>
@@ -365,17 +537,23 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
 
                   <div className="bg-[#FFF1F6] border-r border-b border-[#F0D9E3] p-6">
                     <p className="text-[13px] font-medium tracking-[0.16em] uppercase text-[#E8005F]">
-                      {selectedOrder.depositPercentageApplied === 100
-                        ? 'Paid in Full (100%)'
-                        : `Paid Upfront (${selectedOrder.depositPercentageApplied}%)`}
+                      {selectedOrder.depositPaidNaira <= 0 ||
+                      selectedOrder.status === 'Awaiting payment'
+                        ? 'Paid So Far'
+                        : selectedOrder.depositPercentageApplied === 100
+                          ? 'Paid in Full (100%)'
+                          : `Paid Upfront (${selectedOrder.depositPercentageApplied}%)`}
                     </p>
                     <p className="mt-2 font-display text-3xl font-medium text-[#E8005F] tabular-nums">
                       {formatNaira(selectedOrder.depositPaidNaira)}
                     </p>
                     <p className="mt-1.5 text-sm text-[#4A4A4A]">
-                      {selectedOrder.depositPercentageApplied === 100
-                        ? '100% upfront (Paid in full)'
-                        : `${selectedOrder.depositPercentageApplied}% upfront payment confirmed`}
+                      {selectedOrder.depositPaidNaira <= 0 ||
+                      selectedOrder.status === 'Awaiting payment'
+                        ? 'Awaiting payment confirmation'
+                        : selectedOrder.depositPercentageApplied === 100
+                          ? '100% upfront (Paid in full)'
+                          : `${selectedOrder.depositPercentageApplied}% upfront payment confirmed`}
                     </p>
                   </div>
 
@@ -389,7 +567,9 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                     <p className="mt-1.5 text-sm text-[#666666]">
                       {selectedOrder.balanceRemainingNaira === 0
                         ? 'Balance due ₦0 · Paid in full'
-                        : 'Due before dispatch'}
+                        : selectedOrder.status === 'Awaiting payment'
+                          ? 'Awaiting upfront payment'
+                          : 'Due before dispatch'}
                     </p>
                   </div>
                 </div>
@@ -528,6 +708,36 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                 </p>
               )}
 
+              {paymentNotice && (
+                <div
+                  role="status"
+                  className={`p-5 border flex items-start gap-3.5 text-base leading-relaxed ${
+                    paymentNotice.tone === 'verified'
+                      ? 'bg-[#FFF1F6] border-[#E8005F] text-[#222222]'
+                      : paymentNotice.tone === 'error'
+                        ? 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]'
+                        : 'bg-[#FAF7F9] border-[#52005C] text-[#222222]'
+                  }`}
+                >
+                  {paymentNotice.tone === 'verified' ? (
+                    <Check className="w-5 h-5 text-[#E8005F] shrink-0 mt-0.5" />
+                  ) : paymentNotice.tone === 'pending' ? (
+                    <Clock className="w-5 h-5 text-[#52005C] shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-[#E8005F] shrink-0 mt-0.5" />
+                  )}
+                  <div className="space-y-1">
+                    <p className="font-medium">{paymentNotice.message}</p>
+                    {paymentNotice.reference && (
+                      <p className="text-sm text-[#666666]">
+                        Flutterwave Reference:{' '}
+                        <span className="font-mono text-[#222222]">{paymentNotice.reference}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {ordersLoading ? (
                 <div className="bg-[#FAF7F9] border border-[#F0D9E3] p-12 text-center text-base text-[#555555]">
                   Loading your orders...
@@ -595,7 +805,9 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                       </div>
                       <div>
                         <p className="text-[13px] tracking-[0.1em] uppercase text-[#666666]">
-                          Paid ({order.depositPercentageApplied}%)
+                          {order.depositPaidNaira <= 0 || order.status === 'Awaiting payment'
+                            ? 'Paid So Far'
+                            : `Paid (${order.depositPercentageApplied}%)`}
                         </p>
                         <p className="mt-1 font-medium text-[#E8005F] text-base tabular-nums">
                           {formatNaira(order.depositPaidNaira)}
@@ -615,14 +827,20 @@ export const CustomerDashboardPage: React.FC<CustomerDashboardPageProps> = ({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-                      {order.balanceRemainingNaira > 0 && (
+                      {(order.status === 'Awaiting payment' ||
+                        order.depositPaidNaira <= 0 ||
+                        order.balanceRemainingNaira > 0) && (
                         <button
                           type="button"
-                          disabled={payingOrderId === order.id}
+                          disabled={payingOrderId !== null}
                           onClick={() => void handlePayBalance(order.id)}
                           className="px-4 py-2.5 bg-[#52005C] hover:bg-[#3D0045] disabled:opacity-60 text-white text-[13px] font-medium tracking-[0.12em] uppercase whitespace-nowrap transition-colors cursor-pointer"
                         >
-                          {payingOrderId === order.id ? 'Recording...' : 'Pay Balance'}
+                          {payingOrderId === order.id
+                            ? payingLabel || 'Opening...'
+                            : order.status === 'Awaiting payment' || order.depositPaidNaira <= 0
+                              ? 'Pay with Flutterwave'
+                              : 'Pay Balance'}
                         </button>
                       )}
                       <button

@@ -241,12 +241,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const totalDepositsReceived = useMemo(
     () =>
       payments
-        .filter((p) => p.type === 'Deposit' || p.type === 'Full Payment')
+        .filter(
+          (p) =>
+            p.status === 'Verified' && (p.type === 'Deposit' || p.type === 'Full Payment')
+        )
         .reduce((sum, p) => sum + p.amountNaira, 0),
     [payments]
   );
   const totalBalancesReceived = useMemo(
-    () => payments.filter((p) => p.type === 'Balance').reduce((sum, p) => sum + p.amountNaira, 0),
+    () =>
+      payments
+        .filter((p) => p.status === 'Verified' && p.type === 'Balance')
+        .reduce((sum, p) => sum + p.amountNaira, 0),
     [payments]
   );
   const balancesOutstanding = useMemo(
@@ -981,7 +987,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   className="h-11 px-3.5 border border-[#F0D9E3] focus:border-[#E8005F] focus:outline-none bg-white text-base text-[#222222]"
                 >
                   <option value="all">All Statuses</option>
-                  {ORDER_STATUS_STEPS.map((status) => (
+                  {(['Awaiting payment', ...ORDER_STATUS_STEPS] as OrderStatus[]).map((status) => (
                     <option key={status} value={status}>
                       {status}
                     </option>
@@ -1053,11 +1059,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                                 }
                                 className="h-9 px-2.5 border border-[#F0D9E3] bg-white text-sm text-[#222222] focus:border-[#E8005F] focus:outline-none"
                               >
-                                {ORDER_STATUS_STEPS.map((st) => (
-                                  <option key={st} value={st}>
-                                    {st}
-                                  </option>
-                                ))}
+                                {(['Awaiting payment', ...ORDER_STATUS_STEPS] as OrderStatus[]).map(
+                                  (st) => (
+                                    <option key={st} value={st}>
+                                      {st}
+                                    </option>
+                                  )
+                                )}
                               </select>
                             </td>
                             <td className="px-6 py-4 text-right whitespace-nowrap">
@@ -1090,14 +1098,15 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   Payments Ledger
                 </h2>
                 <p className="mt-1.5 text-base text-[#555555]">
-                  Every deposit and balance payment recorded per pre-order.
+                  Every Flutterwave deposit and balance payment recorded per pre-order. Older test
+                  entries are marked Simulated (old test).
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 border-t border-l border-[#F0D9E3]">
                 <div className="bg-white border-r border-b border-[#F0D9E3] p-6">
                   <p className="text-[13px] font-medium tracking-[0.13em] uppercase text-[#666666]">
-                    Total Upfront Collected
+                    Verified Upfront Collected
                   </p>
                   <p className="mt-2 font-display text-3xl font-medium text-[#E8005F] tabular-nums">
                     {formatNaira(totalDepositsReceived)}
@@ -1105,7 +1114,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 </div>
                 <div className="bg-white border-r border-b border-[#F0D9E3] p-6">
                   <p className="text-[13px] font-medium tracking-[0.13em] uppercase text-[#666666]">
-                    Total Balances Collected
+                    Verified Balances Collected
                   </p>
                   <p className="mt-2 font-display text-3xl font-medium text-[#52005C] tabular-nums">
                     {formatNaira(totalBalancesReceived)}
@@ -1113,7 +1122,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 </div>
                 <div className="bg-[#FFF1F6] border-r border-b border-[#F0D9E3] p-6">
                   <p className="text-[13px] font-medium tracking-[0.13em] uppercase text-[#E8005F]">
-                    Total Revenue Received
+                    Verified Revenue Received
                   </p>
                   <p className="mt-2 font-display text-3xl font-medium text-[#222222] tabular-nums">
                     {formatNaira(totalDepositsReceived + totalBalancesReceived)}
@@ -1131,6 +1140,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                         <th className="px-6 py-3.5">Order</th>
                         <th className="px-6 py-3.5">Customer</th>
                         <th className="px-6 py-3.5">Payment Type</th>
+                        <th className="px-6 py-3.5">Provider</th>
                         <th className="px-6 py-3.5 text-right">Amount</th>
                         <th className="px-6 py-3.5">Status</th>
                       </tr>
@@ -1138,7 +1148,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     <tbody className="divide-y divide-[#EFE5EA]">
                       {payments.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-6 py-10 text-center text-base text-[#555555]">
+                          <td colSpan={8} className="px-6 py-10 text-center text-base text-[#555555]">
                             No payment records have been logged yet.
                           </td>
                         </tr>
@@ -1166,10 +1176,21 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                                 {pay.type === 'Full Payment' ? 'Full Payment' : `${pay.type} Payment`}
                               </span>
                             </td>
+                            <td className="px-6 py-4 text-sm text-[#4A4A4A] whitespace-nowrap">
+                              {pay.method}
+                            </td>
                             <td className="px-6 py-4 text-right text-base font-medium text-[#222222] tabular-nums whitespace-nowrap">
                               {formatNaira(pay.amountNaira)}
                             </td>
-                            <td className="px-6 py-4 text-sm font-medium text-[#52005C] whitespace-nowrap capitalize">
+                            <td
+                              className={`px-6 py-4 text-sm font-medium whitespace-nowrap ${
+                                pay.status === 'Verified'
+                                  ? 'text-[#047857]'
+                                  : pay.status === 'Pending'
+                                    ? 'text-[#52005C]'
+                                    : 'text-[#666666]'
+                              }`}
+                            >
                               {pay.status}
                             </td>
                           </tr>
@@ -1300,10 +1321,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 </div>
 
                 <div className="bg-[#FFF1F6] border border-[#F0D9E3] p-5 text-base text-[#4A4A4A] leading-relaxed">
-                  <strong className="font-medium text-[#52005C]">Payment Records Note:</strong>{' '}
+                  <strong className="font-medium text-[#52005C]">Flutterwave Payments Note:</strong>{' '}
                   Upfront payment options ({settings.upfrontOptions.join('%, ')}%) are read from
-                  your Supabase store settings table. Checkout payments are currently saved as
-                  simulated payment records until live payment verification is connected.
+                  your Supabase store settings table. Checkout and balance payments open
+                  Flutterwave in test mode and remain Pending until server verification confirms
+                  them.
                 </div>
 
                 <button

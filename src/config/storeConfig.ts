@@ -1,7 +1,8 @@
 /**
  * Store configuration for Pre Order With Tabsah.
- * Keep Paystack public key, default deposit percentage, delivery fees,
+ * Keep default deposit percentage, delivery fees,
  * and store contact details in this single config file.
+ * Flutterwave checkout settings live in src/config/flutterwave.ts.
  */
 
 export interface DeliveryZoneFee {
@@ -28,7 +29,6 @@ export interface StoreConfig {
   businessName: string;
   currencySymbol: string;
   currencyCode: string;
-  paystackPublicKey: string;
   upfrontOptions: number[];
   defaultUpfrontPercentage: number;
   depositPercentage: number;
@@ -46,8 +46,6 @@ export const STORE_CONFIG: StoreConfig = {
   businessName: 'Tabsah Preorder & Importation',
   currencySymbol: '₦',
   currencyCode: 'NGN',
-  // Replace with your live Paystack public key when connecting real checkout payments.
-  paystackPublicKey: 'pk_test_replace_with_tabsah_paystack_public_key',
   upfrontOptions: [50, 75, 100],
   defaultUpfrontPercentage: 50,
   depositPercentage: 50,

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, Lock, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowRight, Check, Clock, Lock, ShieldCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import {
   calculateDepositAndBalance,
@@ -8,6 +8,22 @@ import {
   Order,
 } from '../data/storeData';
 import { BackButton } from '../components/BackButton';
+import {
+  cleanupFlutterwaveDom,
+  loadFlutterwaveScript,
+  openFlutterwaveCheckout,
+  verifyFlutterwavePayment,
+} from '../services/flutterwave';
+
+type CheckoutPaymentState = 'verified' | 'pending' | 'awaiting_payment';
+
+interface CheckoutReceiptState {
+  order: Order;
+  paymentState: CheckoutPaymentState;
+  paymentRef: string;
+  expectedPayNowNaira: number;
+  notice?: string;
+}
 
 export const CheckoutPage: React.FC = () => {
   const {
@@ -17,6 +33,9 @@ export const CheckoutPage: React.FC = () => {
     authLoading,
     settings,
     placeOrder,
+    payOrderBalance,
+    refreshOrderById,
+    refreshOrdersAndPayments,
     navigate,
   } = useStore();
 
@@ -39,7 +58,14 @@ export const CheckoutPage: React.FC = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [submittingLabel, setSubmittingLabel] = useState('');
+  const [checkoutReceipt, setCheckoutReceipt] = useState<CheckoutReceiptState | null>(null);
+
+  useEffect(() => {
+    void loadFlutterwaveScript().catch(() => {
+      // Preload is best-effort; errors are surfaced when the customer clicks Pay
+    });
+  }, []);
 
   useEffect(() => {
     if (currentCustomer) {
@@ -72,8 +98,78 @@ export const CheckoutPage: React.FC = () => {
   const isPayInFull = upfrontPercentage === 100;
 
   const payButtonLabel = isPayInFull
-    ? `Pay in Full (${formatNaira(payNow)})`
-    : `Pay ${upfrontPercentage} Percent Now (${formatNaira(payNow)})`;
+    ? `Pay in Full with Flutterwave (${formatNaira(payNow)})`
+    : `Pay ${upfrontPercentage}% Now with Flutterwave (${formatNaira(payNow)})`;
+
+  const launchFlutterwaveForOrder = async (
+    order: Order,
+    paymentRef: string,
+    amountNaira: number
+  ) => {
+    setSubmittingLabel('Opening Flutterwave...');
+    const description =
+      order.depositPercentageApplied === 100
+        ? `Full payment for order ${order.orderNumber}`
+        : `Deposit for order ${order.orderNumber}`;
+
+    const modalOutcome = await openFlutterwaveCheckout({
+      tx_ref: paymentRef,
+      amount: amountNaira,
+      customer: {
+        email: order.customerEmail || currentCustomer?.email || '',
+        name: order.customerName || currentCustomer?.name || 'Customer',
+        phone: order.customerWhatsApp || currentCustomer?.whatsApp || '',
+      },
+      description,
+    });
+
+    if (modalOutcome.status === 'load_error') {
+      setCheckoutReceipt({
+        order,
+        paymentState: 'awaiting_payment',
+        paymentRef,
+        expectedPayNowNaira: amountNaira,
+        notice: modalOutcome.error,
+      });
+      return;
+    }
+
+    if (modalOutcome.status === 'closed') {
+      await refreshOrdersAndPayments();
+      setCheckoutReceipt({
+        order,
+        paymentState: 'awaiting_payment',
+        paymentRef,
+        expectedPayNowNaira: amountNaira,
+      });
+      return;
+    }
+
+    setSubmittingLabel('Confirming payment...');
+    const verified = await verifyFlutterwavePayment({
+      transaction_id: modalOutcome.transaction_id,
+      reference: paymentRef,
+    });
+
+    if (verified) {
+      const refreshedOrder = await refreshOrderById(order.id);
+      setCheckoutReceipt({
+        order: refreshedOrder ?? order,
+        paymentState: 'verified',
+        paymentRef,
+        expectedPayNowNaira: amountNaira,
+      });
+      return;
+    }
+
+    await refreshOrdersAndPayments();
+    setCheckoutReceipt({
+      order,
+      paymentState: 'pending',
+      paymentRef,
+      expectedPayNowNaira: amountNaira,
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +206,7 @@ export const CheckoutPage: React.FC = () => {
     }
 
     setSubmitting(true);
+    setSubmittingLabel('Creating order...');
     try {
       const result = await placeOrder({
         name,
@@ -123,65 +220,171 @@ export const CheckoutPage: React.FC = () => {
         upfrontPercentage,
       });
 
-      if (!result.ok || !result.order) {
-        setFormError(result.error ?? 'Could not complete your order. Please try again.');
+      if (!result.ok || !result.order || !result.paymentRef || result.payNowAmount === undefined) {
+        setFormError(result.error ?? 'Could not create your order. Please try again.');
         return;
       }
 
-      setCompletedOrder(result.order);
+      await launchFlutterwaveForOrder(result.order, result.paymentRef, result.payNowAmount);
+    } catch (err) {
+      cleanupFlutterwaveDom({ removePreload: true });
+      setFormError(
+        err instanceof Error && err.message
+          ? err.message
+          : 'The Flutterwave payment window did not start. Please try again.'
+      );
     } finally {
       setSubmitting(false);
+      setSubmittingLabel('');
     }
   };
 
-  if (completedOrder) {
+  const handleRetryAwaitingPayment = async () => {
+    if (!checkoutReceipt || submitting) return;
+    setSubmitting(true);
+    setSubmittingLabel('Preparing Flutterwave payment...');
+    try {
+      const prep = await payOrderBalance(checkoutReceipt.order.id);
+      if (!prep.ok || !prep.order || !prep.paymentRef || prep.amount === undefined) {
+        setCheckoutReceipt((prev) =>
+          prev
+            ? {
+                ...prev,
+                notice: prep.error ?? 'Could not start payment retry. Please try again.',
+              }
+            : prev
+        );
+        return;
+      }
+      await launchFlutterwaveForOrder(prep.order, prep.paymentRef, prep.amount);
+    } catch (err) {
+      cleanupFlutterwaveDom({ removePreload: true });
+      setCheckoutReceipt((prev) =>
+        prev
+          ? {
+              ...prev,
+              notice:
+                err instanceof Error && err.message
+                  ? err.message
+                  : 'The Flutterwave payment window did not start. Please try again.',
+            }
+          : prev
+      );
+    } finally {
+      setSubmitting(false);
+      setSubmittingLabel('');
+    }
+  };
+
+  if (checkoutReceipt) {
+    const { order: receiptOrder, paymentState, paymentRef, expectedPayNowNaira, notice } =
+      checkoutReceipt;
+    const firstName = receiptOrder.customerName.split(' ')[0] || 'Customer';
+
     return (
       <div className="max-w-3xl mx-auto px-5 sm:px-8 py-12 sm:py-16">
         <div className="mb-5">
           <BackButton fallback={{ page: 'shop' }} />
         </div>
         <div className="border border-[#F0D9E3] bg-white p-8 sm:p-12">
-          <div className="w-11 h-11 bg-[#FFF1F6] text-[#E8005F] flex items-center justify-center mb-6">
-            <Check className="w-5 h-5" />
-          </div>
-          <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-2">
-            Pre-Order Confirmed
-          </p>
-          <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222] leading-tight">
-            {completedOrder.balanceRemainingNaira === 0
-              ? `Thank you, ${completedOrder.customerName.split(' ')[0]}. Your order is paid in full.`
-              : `Thank you, ${completedOrder.customerName.split(' ')[0]}. Your ${completedOrder.depositPercentageApplied}% upfront payment is received.`}
-          </h1>
-          <p className="mt-4 text-base text-[#555555] leading-relaxed">
-            Order <strong className="text-[#222222]">{completedOrder.orderNumber}</strong> is
-            confirmed and linked to your customer account ({completedOrder.customerEmail}). We will
-            send WhatsApp updates to <strong>{completedOrder.customerWhatsApp}</strong> as your
-            batch moves towards Lagos.
-          </p>
+          {paymentState === 'verified' ? (
+            <>
+              <div className="w-11 h-11 bg-[#FFF1F6] text-[#E8005F] flex items-center justify-center mb-6">
+                <Check className="w-5 h-5" />
+              </div>
+              <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-2">
+                Pre-Order Confirmed
+              </p>
+              <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222] leading-tight">
+                {receiptOrder.balanceRemainingNaira === 0
+                  ? `Thank you, ${firstName}. Your order is paid in full.`
+                  : `Thank you, ${firstName}. Your ${receiptOrder.depositPercentageApplied}% upfront payment is confirmed.`}
+              </h1>
+              <p className="mt-4 text-base text-[#555555] leading-relaxed">
+                Order <strong className="text-[#222222]">{receiptOrder.orderNumber}</strong> is
+                confirmed via Flutterwave and linked to your customer account (
+                {receiptOrder.customerEmail}). We will send WhatsApp updates to{' '}
+                <strong>{receiptOrder.customerWhatsApp}</strong> as your batch moves towards Lagos.
+              </p>
+            </>
+          ) : paymentState === 'pending' ? (
+            <>
+              <div className="w-11 h-11 bg-[#FFF1F6] text-[#52005C] flex items-center justify-center mb-6">
+                <Clock className="w-5 h-5" />
+              </div>
+              <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-2">
+                Payment Pending Verification
+              </p>
+              <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222] leading-tight">
+                We are confirming your payment, this can take a few minutes
+              </h1>
+              <p className="mt-4 text-base text-[#555555] leading-relaxed">
+                Order <strong className="text-[#222222]">{receiptOrder.orderNumber}</strong> has
+                been saved to your account ({receiptOrder.customerEmail}) with payment reference{' '}
+                <strong className="font-mono text-[#222222]">{paymentRef}</strong>. Your payment
+                status is currently <strong>Pending</strong> until Flutterwave server verification
+                completes.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="w-11 h-11 bg-[#FFF1F6] text-[#E8005F] flex items-center justify-center mb-6">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <p className="text-[13px] tracking-[0.2em] uppercase font-medium text-[#52005C] mb-2">
+                Awaiting Payment
+              </p>
+              <h1 className="font-display text-3xl sm:text-4xl font-medium text-[#222222] leading-tight">
+                Order {receiptOrder.orderNumber} is saved and awaiting payment
+              </h1>
+              <p className="mt-4 text-base text-[#555555] leading-relaxed">
+                Your Flutterwave checkout window was closed before payment was completed. Your
+                order has been kept safely in your dashboard as <strong>Awaiting payment</strong>,
+                and you can retry paying now or anytime from your Customer Dashboard.
+              </p>
+              {notice && (
+                <div
+                  role="alert"
+                  className="mt-4 p-4 bg-[#FEF2F2] border border-[#FECACA] text-base font-medium text-[#991B1B]"
+                >
+                  {notice}
+                </div>
+              )}
+            </>
+          )}
 
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 border-t border-b border-[#F0D9E3] divide-y sm:divide-y-0 sm:divide-x divide-[#F0D9E3]">
             <div className="py-5 sm:pr-5">
               <p className="text-[13px] tracking-[0.13em] uppercase text-[#666666]">Full Total</p>
               <p className="mt-1.5 text-xl font-semibold text-[#222222] tabular-nums">
-                {formatNaira(completedOrder.fullTotalNaira)}
+                {formatNaira(receiptOrder.fullTotalNaira)}
               </p>
             </div>
             <div className="py-5 sm:px-5">
               <p className="text-[13px] tracking-[0.13em] uppercase text-[#E8005F]">
-                Paid Upfront ({completedOrder.depositPercentageApplied}%)
+                {paymentState === 'verified'
+                  ? `Paid Upfront (${receiptOrder.depositPercentageApplied}%)`
+                  : `Upfront Amount (${receiptOrder.depositPercentageApplied}%)`}
               </p>
               <p className="mt-1.5 text-xl font-semibold text-[#E8005F] tabular-nums">
-                {formatNaira(completedOrder.depositPaidNaira)}
+                {paymentState === 'verified'
+                  ? formatNaira(receiptOrder.depositPaidNaira)
+                  : formatNaira(expectedPayNowNaira)}
               </p>
+              {paymentState !== 'verified' && (
+                <p className="mt-1 text-sm text-[#52005C]">
+                  {paymentState === 'pending' ? 'Pending verification' : 'Not paid yet'}
+                </p>
+              )}
             </div>
             <div className="py-5 sm:pl-5">
               <p className="text-[13px] tracking-[0.13em] uppercase text-[#52005C]">
                 Balance Remaining
               </p>
               <p className="mt-1.5 text-xl font-semibold text-[#52005C] tabular-nums">
-                {formatNaira(completedOrder.balanceRemainingNaira)}
+                {formatNaira(receiptOrder.balanceRemainingNaira)}
               </p>
-              {completedOrder.balanceRemainingNaira === 0 && (
+              {paymentState === 'verified' && receiptOrder.balanceRemainingNaira === 0 && (
                 <p className="mt-1 text-sm font-medium text-[#52005C]">
                   Balance due ₦0 · Paid in full
                 </p>
@@ -191,43 +394,70 @@ export const CheckoutPage: React.FC = () => {
 
           <div className="mt-6 text-base text-[#555555] space-y-1.5">
             <p>
+              <strong className="text-[#222222]">Payment Reference:</strong>{' '}
+              <span className="font-mono text-sm text-[#222222]">{paymentRef}</span>
+            </p>
+            <p>
+              <strong className="text-[#222222]">Payment Provider:</strong> Flutterwave
+            </p>
+            <p>
               <strong className="text-[#222222]">Upfront Option:</strong>{' '}
-              {completedOrder.depositPercentageApplied === 100
-                ? '100% upfront (Paid in full)'
-                : `${completedOrder.depositPercentageApplied}% upfront`}
+              {receiptOrder.depositPercentageApplied === 100
+                ? '100% upfront (Pay in full)'
+                : `${receiptOrder.depositPercentageApplied}% upfront`}
             </p>
             <p>
               <strong className="text-[#222222]">Expected Arrival:</strong>{' '}
-              {formatArrivalDate(completedOrder.expectedArrivalDate)}
+              {formatArrivalDate(receiptOrder.expectedArrivalDate)}
             </p>
             <p>
-              <strong className="text-[#222222]">Status:</strong> {completedOrder.status}
+              <strong className="text-[#222222]">Order Status:</strong>{' '}
+              {paymentState === 'pending' ? 'Pending payment confirmation' : receiptOrder.status}
             </p>
             <p>
               <strong className="text-[#222222]">Delivery Address:</strong>{' '}
               {[
-                completedOrder.deliveryAddress,
-                completedOrder.deliveryCity,
-                completedOrder.deliveryState,
+                receiptOrder.deliveryAddress,
+                receiptOrder.deliveryCity,
+                receiptOrder.deliveryState,
               ]
                 .filter(Boolean)
                 .join(', ')}
             </p>
-            {completedOrder.deliveryNote && (
+            {receiptOrder.deliveryNote && (
               <p>
                 <strong className="text-[#222222]">Landmark / Delivery Note:</strong>{' '}
-                {completedOrder.deliveryNote}
+                {receiptOrder.deliveryNote}
               </p>
             )}
           </div>
 
           <div className="mt-9 flex flex-wrap gap-4">
+            {paymentState === 'awaiting_payment' && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => void handleRetryAwaitingPayment()}
+                className="px-7 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] disabled:opacity-60 text-white text-[13px] tracking-[0.16em] uppercase font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>
+                  {submitting
+                    ? submittingLabel || 'Opening Flutterwave...'
+                    : `Retry Payment with Flutterwave (${formatNaira(expectedPayNowNaira)})`}
+                </span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() =>
-                navigate({ page: 'account', tab: 'orders', orderId: completedOrder.id })
+                navigate({ page: 'account', tab: 'orders', orderId: receiptOrder.id })
               }
-              className="px-7 py-3.5 bg-[#E8005F] hover:bg-[#C4004F] text-white text-[13px] tracking-[0.16em] uppercase font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer"
+              className={`px-7 py-3.5 text-white text-[13px] tracking-[0.16em] uppercase font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer ${
+                paymentState === 'awaiting_payment'
+                  ? 'bg-[#52005C] hover:bg-[#3D0045]'
+                  : 'bg-[#E8005F] hover:bg-[#C4004F]'
+              }`}
             >
               <span>View Order in Dashboard</span>
               <ArrowRight className="w-4 h-4" />
@@ -235,7 +465,7 @@ export const CheckoutPage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate({ page: 'shop' })}
-              className="px-7 py-3.5 bg-[#52005C] hover:bg-[#3D0045] text-white text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors cursor-pointer"
+              className="px-7 py-3.5 border border-[#F0D9E3] hover:border-[#52005C] text-[#222222] text-[13px] tracking-[0.16em] uppercase font-semibold transition-colors cursor-pointer"
             >
               Continue Shopping
             </button>
@@ -734,14 +964,14 @@ export const CheckoutPage: React.FC = () => {
             className="w-full py-4 px-5 sm:px-6 bg-[#E8005F] hover:bg-[#C4004F] disabled:opacity-60 text-white text-[13px] tracking-[0.14em] sm:tracking-[0.16em] uppercase font-semibold inline-flex items-center justify-center gap-2.5 text-center transition-colors cursor-pointer"
           >
             <Lock className="w-3.5 h-3.5 shrink-0" />
-            <span>{submitting ? 'Recording Order...' : payButtonLabel}</span>
+            <span>{submitting ? submittingLabel || 'Opening Flutterwave...' : payButtonLabel}</span>
           </button>
 
           <div className="flex items-start gap-2.5 text-base text-[#666666] leading-relaxed">
             <ShieldCheck className="w-4 h-4 text-[#52005C] shrink-0 mt-1" />
             <span>
-              Your pre-order and simulated payment record will be saved to your customer account
-              immediately after confirmation.
+              Secured by Flutterwave. Your order and pending payment reference are saved before
+              checkout opens, and payment is confirmed after server verification.
             </span>
           </div>
         </aside>
